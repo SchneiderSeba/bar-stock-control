@@ -9,6 +9,12 @@ Aplicación full-stack para controlar el inventario de un bar, precios, margen p
 - Base de datos: MySQL 8 (producción/local) y H2 para la demo desplegada
 - Deploy: Docker y Railway
 
+## Demo pública
+
+https://bar-stock-control-production.up.railway.app
+
+La demo utiliza H2 en memoria: los cambios se pierden al reiniciar o redesplegar el servicio. Para conservar datos reales, configurar MySQL con el perfil `mysql` indicado debajo. La demo permite acceso sin autenticación.
+
 ## Funcionalidades del MVP
 
 - Dashboard con valor del stock, facturación potencial y profit estimado.
