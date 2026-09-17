@@ -1,0 +1,28 @@
+import {useEffect,useState,type FormEvent,type ReactNode} from 'react'
+import {auth} from './api'
+import type {User} from './types'
+
+export function AuthGate({children}:{children:(user:User,onLogout:()=>void)=>ReactNode}){
+ const [user,setUser]=useState<User>();const [checking,setChecking]=useState(true)
+ useEffect(()=>{auth.me().then(setUser).catch(()=>setUser(undefined)).finally(()=>setChecking(false));const expired=()=>setUser(undefined);window.addEventListener('session-expired',expired);return()=>window.removeEventListener('session-expired',expired)},[])
+ if(checking)return <div className="loading">Comprobando sesión…</div>
+ if(!user)return <Login onSuccess={setUser}/>
+ return <>{children(user,()=>setUser(undefined))}</>
+}
+function Login({onSuccess}:{onSuccess:(user:User)=>void}){
+ const [register,setRegister]=useState(false);const [error,setError]=useState('');const [busy,setBusy]=useState(false)
+ async function submit(event:FormEvent<HTMLFormElement>){
+  event.preventDefault();const data=new FormData(event.currentTarget);setError('')
+  const email=String(data.get('email')),password=String(data.get('password'))
+  if(register && password!==data.get('confirm')){setError('Las contraseñas no coinciden.');return}
+  setBusy(true);try{onSuccess(register?await auth.register(String(data.get('name')),email,password):await auth.login(email,password))}catch(e){setError(e instanceof Error?e.message:'No se pudo iniciar sesión.')}finally{setBusy(false)}
+ }
+ return <div className="auth-page"><section className="auth-intro"><span className="brand-mark">B</span><p>BARSTOCK</p><h1>Tu bar.<br/>Todo bajo control.</h1><p>Stock, proveedores y márgenes en un mismo lugar.</p></section><section className="auth-card"><h2>{register?'Crear una cuenta':'Bienvenido de nuevo'}</h2><p>{register?'Regístrate para acceder al inventario compartido del bar.':'Inicia sesión para administrar el bar.'}</p><form onSubmit={submit} className="auth-form">{error&&<div className="error" role="alert">{error}</div>}{register&&<label>Nombre<input name="name" autoComplete="name" required maxLength={120}/></label>}<label>Email<input name="email" type="email" autoComplete="username" required maxLength={180}/></label><label>Contraseña<input name="password" type="password" autoComplete={register?'new-password':'current-password'} minLength={register?12:undefined} maxLength={72} required/></label>{register&&<><small>Usa al menos 12 caracteres.</small><label>Confirmar contraseña<input name="confirm" type="password" autoComplete="new-password" required/></label></>}<button className="primary" disabled={busy}>{busy?'Espera…':register?'Crear cuenta':'Iniciar sesión'}</button></form><button className="auth-switch" disabled={busy} onClick={()=>{setRegister(!register);setError('')}}>{register?'Ya tengo una cuenta':'Crear una cuenta'}</button></section></div>
+}
+export function Account({user,onLogout}:{user:User;onLogout:()=>void}){
+ const [open,setOpen]=useState(false);const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false)
+ async function logout(){setBusy(true);try{await auth.logout();onLogout()}catch(e){setError(e instanceof Error?e.message:'Error')}finally{setBusy(false)}}
+ async function password(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=e.currentTarget,data=new FormData(form);setError('');setMessage('');if(data.get('new')!==data.get('confirm')){setError('Las contraseñas no coinciden.');return}setBusy(true);try{await auth.password(String(data.get('current')),String(data.get('new')));form.reset();setMessage('Contraseña actualizada.')}catch(e){setError(e instanceof Error?e.message:'Error')}finally{setBusy(false)}}
+ return <><div className="account-actions"><div><strong>{user.name}</strong><small>{user.role==='ADMIN'?'Administrador':'Usuario'}</small></div><button className="ghost" onClick={()=>setOpen(true)}>Mi cuenta</button><button className="ghost" disabled={busy} onClick={logout}>Salir</button></div>{error&&!open&&<div className="error">{error}</div>}{open&&<div className="modal-backdrop"><section className="modal"><div className="modal-head"><h2>Mi cuenta</h2><button onClick={()=>{setOpen(false);setError('');setMessage('')}} aria-label="Cerrar">×</button></div><form onSubmit={password} className="form-grid"><p className="wide form-note">{user.email}</p>{error&&<div className="wide error" role="alert">{error}</div>}{message&&<p className="wide" role="status">{message}</p>}<label className="wide">Contraseña actual<input name="current" type="password" autoComplete="current-password" required/></label><label>Nueva contraseña<input name="new" type="password" autoComplete="new-password" minLength={12} maxLength={72} required/></label><label>Confirmar contraseña<input name="confirm" type="password" autoComplete="new-password" required/></label><button className="wide primary" disabled={busy}>Cambiar contraseña</button></form></section></div>}</>
+}
+export function Users(){const [users,setUsers]=useState<User[]>([]),[error,setError]=useState('');useEffect(()=>{auth.users().then(setUsers).catch(e=>setError(e.message))},[]);return <>{error&&<div className="error">{error}</div>}<div className="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td>{u.name}</td><td>{u.email}</td><td>{u.role==='ADMIN'?'Administrador':'Usuario'}</td></tr>)}</tbody></table></div></>}

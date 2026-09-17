@@ -12,7 +12,18 @@ spring:
   h2:
     console:
       enabled: false
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
 server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        http-only: true
+        same-site: lax
   error:
     include-message: always
 
@@ -28,4 +39,3 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-

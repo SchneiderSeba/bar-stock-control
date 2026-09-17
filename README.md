@@ -13,7 +13,27 @@ Aplicación full-stack para controlar el inventario de un bar, precios, margen p
 
 https://bar-stock-control-production.up.railway.app
 
-La demo utiliza H2 en memoria: los cambios se pierden al reiniciar o redesplegar el servicio. Para conservar datos reales, configurar MySQL con el perfil `mysql` indicado debajo. La demo permite acceso sin autenticación.
+La demo utiliza H2 en memoria: cuentas, contraseñas modificadas, stock e imágenes se pierden al reiniciar o redesplegar el servicio. Para conservar datos reales, configurar MySQL con el perfil `mysql` indicado debajo. Se requiere registro o login. Las cuentas comparten el inventario del bar.
+
+## Usuarios y administrador
+
+- Registro público con rol `USER`, login y logout por sesión, cookies HttpOnly y protección CSRF.
+- Contraseñas protegidas con BCrypt; mínimo de 12 caracteres al registrarse o cambiar la contraseña.
+- Cambiar la contraseña desde **Mi cuenta**.
+- El administrador tiene rol `ADMIN` y puede consultar la lista de usuarios.
+- Configurar `ADMIN_EMAIL` y `ADMIN_PASSWORD` (12–72 caracteres) antes de iniciar el backend. Se crea el administrador solo si aún no existe. Sin contraseña configurada no se crea un administrador por defecto.
+- Las credenciales de Railway se configuran mediante variables de entorno y no se guardan en Git.
+- Railway usa cookies Secure sobre HTTPS. Para ejecución local por HTTP no activar `SERVER_SERVLET_SESSION_COOKIE_SECURE`.
+
+## PUL e imágenes
+
+Cada producto requiere un `pulCode` como texto, separado del SKU interno; conserva ceros iniciales y no depende del nombre. Se puede buscar por PUL, nombre, SKU o proveedor. Los códigos `DEMO-*` son ejemplos y deben reemplazarse por los códigos reales del proveedor.
+
+Desde **Stock → Agregar producto / Editar** se puede subir, reemplazar o quitar una imagen PNG, JPEG o WebP de hasta 2 MB. Se guarda en la base de datos y solo se entrega a usuarios autenticados.
+
+Si ya existe una base de datos de la versión anterior, ejecutar una vez `database/migrations/002_users_product_images_pul.sql` y reemplazar los PUL `PENDING-*`. Para una instalación nueva usar `database/bar_stock.sql`.
+
+La gestión de sesiones y CSRF sigue la [documentación de Spring Security](https://docs.spring.io/spring-security/reference/servlet/authentication/session-management.html).
 
 ## Funcionalidades del MVP
 

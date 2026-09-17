@@ -1,6 +1,7 @@
 package com.barstock.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 
@@ -11,6 +12,10 @@ public class Product {
     private Long id;
     @NotBlank @Column(nullable = false, unique = true)
     private String sku;
+    @Column(nullable = false, length = 80) private String pulCode;
+    @JsonIgnore @Lob @Column(columnDefinition = "LONGBLOB") private byte[] imageData;
+    @JsonIgnore private String imageContentType;
+    private String imageVersion;
     @NotBlank @Column(nullable = false)
     private String name;
     @NotBlank @Column(nullable = false)
@@ -34,6 +39,14 @@ public class Product {
     public void setId(Long id) { this.id = id; }
     public String getSku() { return sku; }
     public void setSku(String sku) { this.sku = sku; }
+    public String getPulCode() { return pulCode; }
+    public void setPulCode(String code) { this.pulCode = code; }
+    public byte[] getImageData() { return imageData; }
+    public void setImageData(byte[] data) { this.imageData = data; }
+    public String getImageContentType() { return imageContentType; }
+    public void setImageContentType(String type) { this.imageContentType = type; }
+    public String getImageVersion() { return imageVersion; }
+    public void setImageVersion(String version) { this.imageVersion = version; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getCategory() { return category; }
@@ -53,4 +66,3 @@ public class Product {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 }
-

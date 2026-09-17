@@ -8,6 +8,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -15,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser
 class InvoiceIntegrationTests {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
@@ -29,7 +32,7 @@ class InvoiceIntegrationTests {
             {"invoiceNumber":"TEST-001","supplierId":%d,"invoiceDate":"2026-09-17",
              "items":[{"productId":%d,"quantity":2,"unitCost":10.50}]}
             """.formatted(supplierId, productId);
-        mvc.perform(post("/api/invoices").contentType(MediaType.APPLICATION_JSON).content(body))
+        mvc.perform(post("/api/invoices").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
         JsonNode invoices = json.readTree(mvc.perform(get("/api/invoices"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());

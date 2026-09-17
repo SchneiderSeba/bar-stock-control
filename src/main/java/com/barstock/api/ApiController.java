@@ -4,6 +4,13 @@ import com.barstock.model.*;
 import com.barstock.repository.*;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.Arrays;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,6 +38,29 @@ public class ApiController {
     public Product createProduct(@Valid @RequestBody ProductInput input) { return products.save(toProduct(new Product(), input)); }
     @PutMapping("/products/{id}") public Product updateProduct(@PathVariable Long id, @Valid @RequestBody ProductInput input) {
         return products.save(toProduct(product(id), input));
+    }
+    @GetMapping("/products/{id}/image") public ResponseEntity<byte[]> image(@PathVariable Long id) {
+        Product p = product(id);
+        if (p.getImageData() == null) throw notFound("Image");
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(p.getImageContentType()))
+                .header("Cache-Control", "private, no-cache").body(p.getImageData());
+    }
+    @PostMapping(value = "/products/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Product uploadImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty() || file.getSize() > 2 * 1024 * 1024)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La imagen debe pesar como máximo 2 MB");
+        byte[] data = file.getBytes();
+        String type;
+        if (data.length >= 8 && Arrays.equals(Arrays.copyOf(data, 8), new byte[]{(byte)137,80,78,71,13,10,26,10})) type = "image/png";
+        else if (data.length >= 3 && data[0] == (byte)255 && data[1] == (byte)216 && data[2] == (byte)255) type = "image/jpeg";
+        else if (data.length >= 12 && data[0]=='R' && data[1]=='I' && data[2]=='F' && data[3]=='F'
+                && data[8]=='W' && data[9]=='E' && data[10]=='B' && data[11]=='P') type = "image/webp";
+        else throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecciona una imagen PNG, JPEG o WebP");
+        Product p = product(id); p.setImageData(data); p.setImageContentType(type); p.setImageVersion(UUID.randomUUID().toString());
+        return products.save(p);
+    }
+    @DeleteMapping("/products/{id}/image") public Product deleteImage(@PathVariable Long id) {
+        Product p = product(id); p.setImageData(null); p.setImageContentType(null); p.setImageVersion(null); return products.save(p);
     }
     @PostMapping("/products/{id}/adjust") @Transactional
     public Product adjustStock(@PathVariable Long id, @RequestBody StockAdjustment input) {
@@ -94,16 +124,20 @@ public class ApiController {
     private ResponseStatusException notFound(String type) { return new ResponseStatusException(HttpStatus.NOT_FOUND, type + " not found"); }
     private Product toProduct(Product p, ProductInput i) {
         p.setSku(i.sku()); p.setName(i.name()); p.setCategory(i.category()); p.setUnit(i.unit());
+        p.setPulCode(i.pulCode().trim());
         p.setStock(i.stock()); p.setMinimumStock(i.minimumStock()); p.setCostPrice(i.costPrice()); p.setSellingPrice(i.sellingPrice());
         p.setActive(i.active());
         p.setSupplier(i.supplierId() == null ? null : suppliers.findById(i.supplierId()).orElseThrow(() -> notFound("Supplier")));
         return p;
     }
 
-    public record ProductInput(String sku, String name, String category, String unit, BigDecimal stock, BigDecimal minimumStock, BigDecimal costPrice, BigDecimal sellingPrice, Long supplierId, boolean active) {}
+    public record ProductInput(@NotBlank @Size(max=50) String sku, @NotBlank @Size(max=80) String pulCode,
+            @NotBlank @Size(max=140) String name, @NotBlank @Size(max=80) String category, @NotBlank @Size(max=30) String unit,
+            @NotNull @DecimalMin("0") BigDecimal stock, @NotNull @DecimalMin("0") BigDecimal minimumStock,
+            @NotNull @DecimalMin("0") BigDecimal costPrice, @NotNull @DecimalMin("0") BigDecimal sellingPrice,
+            Long supplierId, boolean active) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
     public record InvoiceLineInput(Long productId, BigDecimal quantity, BigDecimal unitCost) {}
     public record InvoiceInput(String invoiceNumber, Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, List<InvoiceLineInput> items) {}
     public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount) {}
 }
-

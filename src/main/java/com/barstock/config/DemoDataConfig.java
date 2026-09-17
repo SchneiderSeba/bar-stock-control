@@ -23,6 +23,5 @@ public class DemoDataConfig {
         };
     }
     private Supplier supplier(String n, String c, String e, String p, SupplierRepository r) { Supplier s = new Supplier(); s.setName(n); s.setContactName(c); s.setEmail(e); s.setPhone(p); return r.save(s); }
-    private void product(String sku, String n, String c, String u, String st, String min, String cost, String sell, Supplier s, ProductRepository r) { Product p = new Product(); p.setSku(sku); p.setName(n); p.setCategory(c); p.setUnit(u); p.setStock(new BigDecimal(st)); p.setMinimumStock(new BigDecimal(min)); p.setCostPrice(new BigDecimal(cost)); p.setSellingPrice(new BigDecimal(sell)); p.setSupplier(s); r.save(p); }
+    private void product(String sku, String n, String c, String u, String st, String min, String cost, String sell, Supplier s, ProductRepository r) { Product p = new Product(); p.setSku(sku); p.setPulCode("DEMO-" + sku); p.setName(n); p.setCategory(c); p.setUnit(u); p.setStock(new BigDecimal(st)); p.setMinimumStock(new BigDecimal(min)); p.setCostPrice(new BigDecimal(cost)); p.setSellingPrice(new BigDecimal(sell)); p.setSupplier(s); r.save(p); }
 }
-
