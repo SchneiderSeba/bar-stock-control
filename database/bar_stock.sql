@@ -26,6 +26,7 @@ CREATE TABLE suppliers (
 CREATE TABLE products (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(50) NOT NULL,
+  keg_size_litres INT,
   image_data LONGBLOB,
   image_content_type VARCHAR(255),
   image_version VARCHAR(255),
@@ -92,8 +93,8 @@ INSERT INTO suppliers (name, contact_name, email, phone, tax_id) VALUES
 ('Emerald Drinks Ltd.', 'Aoife Murphy', 'orders@emeralddrinks.ie', '+353 1 555 0142', 'IE6388047V'),
 ('Dublin Craft Supply', 'Liam Kelly', 'sales@dublincraft.ie', '+353 1 555 0177', 'IE9216034A');
 
-INSERT INTO products (sku, name, category, unit, stock, minimum_stock, cost_price, selling_price, supplier_id) VALUES
-('BEER-001', 'Guinness Keg 50L', 'Beer', 'keg', 8, 3, 178.00, 520.00, 1),
-('BEER-002', 'Heineken Keg 50L', 'Beer', 'keg', 5, 3, 165.00, 490.00, 1),
-('SPIR-001', 'Jameson 700ml', 'Spirits', 'bottle', 18, 6, 24.50, 112.00, 2),
-('MIX-001', 'Tonic Water 200ml', 'Mixers', 'case', 4, 5, 18.00, 48.00, 2);
+INSERT INTO products (sku, name, category, unit, keg_size_litres, stock, minimum_stock, cost_price, selling_price, supplier_id) VALUES
+('BEER-001', 'Guinness Keg 50L', 'Beer', 'keg', 50, 400, 150, 178.00, 520.00, 1),
+('BEER-002', 'Heineken Keg 50L', 'Beer', 'keg', 50, 250, 150, 165.00, 490.00, 1),
+('SPIR-001', 'Jameson 700ml', 'Spirits', 'bottle', NULL, 18, 6, 24.50, 112.00, 2),
+('MIX-001', 'Tonic Water 200ml', 'Mixers', 'case', NULL, 4, 5, 18.00, 48.00, 2);

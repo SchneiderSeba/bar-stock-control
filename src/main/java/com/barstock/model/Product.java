@@ -21,6 +21,7 @@ public class Product {
     private String category;
     @NotBlank @Column(nullable = false)
     private String unit = "unit";
+    private Integer kegSizeLitres;
     @DecimalMin("0.0") @Column(nullable = false, precision = 12, scale = 3)
     private BigDecimal stock = BigDecimal.ZERO;
     @DecimalMin("0.0") @Column(nullable = false, precision = 12, scale = 3)
@@ -50,6 +51,11 @@ public class Product {
     public void setCategory(String category) { this.category = category; }
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
+    public Integer getKegSizeLitres() { return kegSizeLitres; }
+    public void setKegSizeLitres(Integer size) { this.kegSizeLitres = size; }
+    @JsonIgnore public BigDecimal getPricedQuantity() {
+        return "keg".equals(unit) ? stock.divide(BigDecimal.valueOf(kegSizeLitres), java.math.MathContext.DECIMAL64) : stock;
+    }
     public BigDecimal getStock() { return stock; }
     public void setStock(BigDecimal stock) { this.stock = stock; }
     public BigDecimal getMinimumStock() { return minimumStock; }

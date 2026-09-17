@@ -19,12 +19,25 @@ Las cuentas registradas comparten el inventario del mismo bar. Después de inici
 
 El **SKU es el único código del producto**: es obligatorio, único en el inventario y no depende del nombre. Se guarda como texto, por lo que conserva ceros iniciales. La relación con el proveedor se guarda por separado.
 
+### Kegs de 50 L, 30 L o 20 L
+
+Al crear o editar un producto, selecciona **Formato → Keg (stock en litros)** y el tamaño: **50 L keg**, **30 L keg** o **20 L keg**.
+
+- Stock actual, stock mínimo y ajustes se expresan en **litros**, incluidos saldos parciales (por ejemplo 42.5 L).
+- La tabla muestra litros disponibles y su equivalente en kegs: 75 L en un producto de 30 L equivalen a 2.5 kegs.
+- Costo y precio de venta se expresan **por keg** del tamaño seleccionado.
+- El dashboard calcula el valor como `(litros / tamaño del keg) × precio por keg`; el margen porcentual sigue utilizando los precios por keg.
+- En las facturas se ingresan **cantidad de kegs y costo por keg**. Una compra de 2 kegs de 30 L suma 60 L al inventario. Los movimientos de esos productos se guardan en litros.
+- Los productos de ejemplo de 50 L pasan de 8 y 5 kegs a 400 y 250 L, respectivamente. Sus mínimos pasan de 3 kegs a 150 L y sus precios se mantienen.
+
+Para una base MySQL anterior, ejecutar una sola vez `database/migrations/004_keg_litres.sql` después de las migraciones que correspondan. Convierte stock, mínimos y movimientos existentes de unidades de keg a litros; conserva precios y líneas de factura. El script infiere 20/30 L del nombre y usa 50 L cuando no encuentra un tamaño: revisa esa asignación antes de ejecutar la conversión. Para instalación nueva, el SQL principal ya incluye tamaños y cantidades en litros.
+
 ### Qué significan los indicadores
 
 | Indicador | Cálculo |
 | --- | --- |
-| Valor del stock | Suma de cantidad × costo actual |
-| Ingresos potenciales | Suma de cantidad × precio de venta |
+| Valor del stock | Suma de cantidad valorizada × costo actual |
+| Ingresos potenciales | Suma de cantidad valorizada × precio de venta |
 | Ganancia potencial | Ingresos potenciales − valor del stock |
 | Margen de producto | (Precio de venta − costo) / precio de venta × 100 |
 | Stock bajo | Cantidad menor o igual al stock mínimo |
@@ -138,7 +151,7 @@ Detén ambos procesos con `Ctrl+C`. Para ejecutar comandos adicionales utiliza o
 
 Inicia MySQL y conéctate desde MySQL Workbench. Abre `database/bar_stock.sql` y ejecútalo completo. Crea la base `bar_stock`, sus tablas y datos de ejemplo.
 
-El script de instalación es para una base nueva: no vuelvas a ejecutarlo sobre una instalación existente porque las tablas ya estarán creadas. Para actualizar, sigue la sección de migraciones.
+El script de instalación es para una base nueva: no vuelvas a ejecutarlo sobre una instalación existente porque las tablas ya estarán creadas. Para actualizar, sigue la sección de migraciones (incluida la 004 para kegs).
 
 ### 2. Configurar el backend
 
@@ -181,9 +194,10 @@ Haz un respaldo de la base antes de actualizar. Ejecuta los scripts una sola vez
 | Estado de la base | Scripts necesarios |
 | --- | --- |
 | Instalación nueva | Solo `database/bar_stock.sql` |
-| Versión original sin usuarios ni imágenes | `002_users_product_images_pul.sql`, después `003_sku_only.sql` |
-| Versión anterior que ya tiene usuarios, imágenes y código PUL | Solo `003_sku_only.sql` |
-| Versión actual con solo SKU | Ninguno |
+| Versión original sin usuarios ni imágenes | `002_users_product_images_pul.sql`, después `003_sku_only.sql` y `004_keg_litres.sql` |
+| Versión anterior que ya tiene usuarios, imágenes y código PUL | `003_sku_only.sql` y `004_keg_litres.sql` |
+| Versión anterior con solo SKU, sin tamaño de keg | `004_keg_litres.sql` |
+| Versión actual con SKU y tamaño de keg | Ninguno |
 
 La migración 002 se conserva como parte del historial. La 003 elimina la antigua columna PUL y conserva el SKU y el resto de los datos. No ejecutes estas migraciones después del script de instalación nuevo.
 

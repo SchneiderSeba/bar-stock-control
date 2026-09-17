@@ -43,7 +43,7 @@ class InvoiceIntegrationTests {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         for (JsonNode item : updated) {
             if (item.get("id").asLong() == productId) {
-                assertEquals(product.get("stock").asDouble() + 2, item.get("stock").asDouble());
+                assertEquals(product.get("stock").asDouble() + (product.get("unit").asText().equals("keg") ? 2 * product.get("kegSizeLitres").asInt() : 2), item.get("stock").asDouble());
                 assertEquals(10.5, item.get("costPrice").asDouble());
             }
         }

@@ -96,7 +96,9 @@ public class ApiController {
             item.setLineTotal(line.quantity().multiply(line.unitCost()));
             invoice.getItems().add(item);
             total = total.add(item.getLineTotal());
-            product.setStock(product.getStock().add(line.quantity()));
+            BigDecimal stockReceived = "keg".equals(product.getUnit())
+                    ? line.quantity().multiply(BigDecimal.valueOf(product.getKegSizeLitres())) : line.quantity();
+            product.setStock(product.getStock().add(stockReceived));
             product.setCostPrice(line.unitCost());
             products.save(product);
         }
@@ -105,7 +107,10 @@ public class ApiController {
         saved.getItems().forEach(item -> {
             StockMovement movement = new StockMovement();
             movement.setProduct(item.getProduct()); movement.setMovementType(StockMovement.Type.PURCHASE);
-            movement.setQuantityChange(item.getQuantity()); movement.setReferenceType("INVOICE"); movement.setReferenceId(saved.getId());
+            Product purchased = item.getProduct();
+            movement.setQuantityChange("keg".equals(purchased.getUnit())
+                    ? item.getQuantity().multiply(BigDecimal.valueOf(purchased.getKegSizeLitres())) : item.getQuantity());
+            movement.setReferenceType("INVOICE"); movement.setReferenceId(saved.getId());
             movement.setReason("Supplier invoice " + saved.getInvoiceNumber()); movements.save(movement);
         });
         return saved;
@@ -113,8 +118,8 @@ public class ApiController {
 
     @GetMapping("/dashboard") public Dashboard dashboard() {
         List<Product> all = products.findAll();
-        BigDecimal stockValue = all.stream().map(p -> p.getStock().multiply(p.getCostPrice())).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal revenue = all.stream().map(p -> p.getStock().multiply(p.getSellingPrice())).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal stockValue = all.stream().map(p -> p.getPricedQuantity().multiply(p.getCostPrice())).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal revenue = all.stream().map(p -> p.getPricedQuantity().multiply(p.getSellingPrice())).reduce(BigDecimal.ZERO, BigDecimal::add);
         long low = all.stream().filter(p -> p.getStock().compareTo(p.getMinimumStock()) <= 0).count();
         BigDecimal purchases = invoices.findAll().stream().map(SupplierInvoice::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         return new Dashboard(stockValue, revenue, revenue.subtract(stockValue), purchases, all.size(), low);
@@ -123,7 +128,11 @@ public class ApiController {
     private Product product(Long id) { return products.findById(id).orElseThrow(() -> notFound("Product")); }
     private ResponseStatusException notFound(String type) { return new ResponseStatusException(HttpStatus.NOT_FOUND, type + " not found"); }
     private Product toProduct(Product p, ProductInput i) {
+        if ("keg".equalsIgnoreCase(i.unit().trim()) && (i.kegSizeLitres() == null || !List.of(20,30,50).contains(i.kegSizeLitres())))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecciona un keg de 50 L, 30 L o 20 L");
         p.setSku(i.sku()); p.setName(i.name()); p.setCategory(i.category()); p.setUnit(i.unit());
+        if ("keg".equalsIgnoreCase(i.unit().trim())) p.setUnit("keg");
+        p.setKegSizeLitres("keg".equals(p.getUnit()) ? i.kegSizeLitres() : null);
         p.setStock(i.stock()); p.setMinimumStock(i.minimumStock()); p.setCostPrice(i.costPrice()); p.setSellingPrice(i.sellingPrice());
         p.setActive(i.active());
         p.setSupplier(i.supplierId() == null ? null : suppliers.findById(i.supplierId()).orElseThrow(() -> notFound("Supplier")));
@@ -134,7 +143,7 @@ public class ApiController {
             @NotBlank @Size(max=140) String name, @NotBlank @Size(max=80) String category, @NotBlank @Size(max=30) String unit,
             @NotNull @DecimalMin("0") BigDecimal stock, @NotNull @DecimalMin("0") BigDecimal minimumStock,
             @NotNull @DecimalMin("0") BigDecimal costPrice, @NotNull @DecimalMin("0") BigDecimal sellingPrice,
-            Long supplierId, boolean active) {}
+            Long supplierId, boolean active, Integer kegSizeLitres) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
     public record InvoiceLineInput(Long productId, BigDecimal quantity, BigDecimal unitCost) {}
     public record InvoiceInput(String invoiceNumber, Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, List<InvoiceLineInput> items) {}
