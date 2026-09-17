@@ -124,14 +124,13 @@ public class ApiController {
     private ResponseStatusException notFound(String type) { return new ResponseStatusException(HttpStatus.NOT_FOUND, type + " not found"); }
     private Product toProduct(Product p, ProductInput i) {
         p.setSku(i.sku()); p.setName(i.name()); p.setCategory(i.category()); p.setUnit(i.unit());
-        p.setPulCode(i.pulCode().trim());
         p.setStock(i.stock()); p.setMinimumStock(i.minimumStock()); p.setCostPrice(i.costPrice()); p.setSellingPrice(i.sellingPrice());
         p.setActive(i.active());
         p.setSupplier(i.supplierId() == null ? null : suppliers.findById(i.supplierId()).orElseThrow(() -> notFound("Supplier")));
         return p;
     }
 
-    public record ProductInput(@NotBlank @Size(max=50) String sku, @NotBlank @Size(max=80) String pulCode,
+    public record ProductInput(@NotBlank @Size(max=50) String sku,
             @NotBlank @Size(max=140) String name, @NotBlank @Size(max=80) String category, @NotBlank @Size(max=30) String unit,
             @NotNull @DecimalMin("0") BigDecimal stock, @NotNull @DecimalMin("0") BigDecimal minimumStock,
             @NotNull @DecimalMin("0") BigDecimal costPrice, @NotNull @DecimalMin("0") BigDecimal sellingPrice,

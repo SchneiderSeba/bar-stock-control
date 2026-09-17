@@ -26,7 +26,7 @@ class AuthProductIntegrationTests {
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isForbidden());
     }
-    @Test void registrationSessionPulAndImageLifecycle() throws Exception {
+    @Test void registrationSessionSkuAndImageLifecycle() throws Exception {
         String registration = """
             {"name":"Test User","email":"Employee@Test.Example","password":"StrongPassword-123","role":"ADMIN"}
             """;
@@ -40,16 +40,16 @@ class AuthProductIntegrationTests {
         mvc.perform(get("/api/admin/users").session(session)).andExpect(status().isForbidden());
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(registration)).andExpect(status().isConflict());
         String product="""
-            {"sku":"TEST-IMAGE","pulCode":"001234","name":"Test product","category":"Beer","unit":"unit",
+            {"sku":"TEST-IMAGE","name":"Test product","category":"Beer","unit":"unit",
              "stock":2,"minimumStock":1,"costPrice":3,"sellingPrice":5,"active":true}
             """;
-        mvc.perform(post("/api/products").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product.replace("001234", "")))
+        mvc.perform(post("/api/products").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product.replace("TEST-IMAGE", "")))
                 .andExpect(status().isBadRequest());
         JsonNode saved=json.readTree(mvc.perform(post("/api/products").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         long id=saved.get("id").asLong();
         mvc.perform(put("/api/products/"+id).session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product.replace("Test product","Renamed product")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.pulCode").value("001234"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.sku").value("TEST-IMAGE")).andExpect(jsonPath("$.pulCode").doesNotExist());
         byte[] png=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==");
         mvc.perform(multipart("/api/products/"+id+"/image").file(new MockMultipartFile("file","image.png","image/png",png)).session(session).with(csrf()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.imageVersion").isString()).andExpect(jsonPath("$.imageData").doesNotExist());

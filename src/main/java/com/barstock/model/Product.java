@@ -12,7 +12,6 @@ public class Product {
     private Long id;
     @NotBlank @Column(nullable = false, unique = true)
     private String sku;
-    @Column(nullable = false, length = 80) private String pulCode;
     @JsonIgnore @Lob @Column(columnDefinition = "LONGBLOB") private byte[] imageData;
     @JsonIgnore private String imageContentType;
     private String imageVersion;
@@ -39,8 +38,6 @@ public class Product {
     public void setId(Long id) { this.id = id; }
     public String getSku() { return sku; }
     public void setSku(String sku) { this.sku = sku; }
-    public String getPulCode() { return pulCode; }
-    public void setPulCode(String code) { this.pulCode = code; }
     public byte[] getImageData() { return imageData; }
     public void setImageData(byte[] data) { this.imageData = data; }
     public String getImageContentType() { return imageContentType; }
