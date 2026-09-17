@@ -26,7 +26,13 @@ class KegIntegrationTests {
         for (int size : new int[]{50,30,20}) {
             JsonNode before=dashboard();
             JsonNode product=json.readTree(mvc.perform(post("/api/products").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(input(size)))
-                    .andExpect(status().isCreated()).andExpect(jsonPath("$.kegSizeLitres").value(size)).andReturn().getResponse().getContentAsString());
+                    .andExpect(status().isCreated()).andExpect(jsonPath("$.stock").value(0)).andExpect(jsonPath("$.kegSizeLitres").value(size)).andReturn().getResponse().getContentAsString());
+            long initialSupplier=json.readTree(mvc.perform(get("/api/suppliers")).andReturn().getResponse().getContentAsString()).get(0).get("id").asLong();
+            String initialInvoice="""
+                {"invoiceNumber":"KEG-INITIAL-%d","supplierId":%d,
+                 "items":[{"productId":%d,"quantity":%s,"unitCost":100}]}
+                """.formatted(size,initialSupplier,product.get("id").asLong(),java.math.BigDecimal.valueOf(75).divide(java.math.BigDecimal.valueOf(size)));
+            mvc.perform(post("/api/invoices").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(initialInvoice)).andExpect(status().isCreated());
             JsonNode after=dashboard();
             assertEquals(75.0 / size * 100, after.get("stockValue").asDouble()-before.get("stockValue").asDouble(), .000001);
             assertEquals(75.0 / size * 200, after.get("potentialRevenue").asDouble()-before.get("potentialRevenue").asDouble(), .000001);

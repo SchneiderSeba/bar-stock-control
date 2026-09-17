@@ -9,21 +9,22 @@ Aplicación para administrar el stock de un bar, los precios de sus productos y 
 Las cuentas registradas comparten el inventario del mismo bar. Después de iniciar sesión, puedes:
 
 1. **Dashboard:** consultar el valor del inventario, ingresos potenciales, ganancias potenciales y productos con stock bajo.
-2. **Stock:** crear y editar productos con SKU, nombre, categoría, unidad, proveedor, cantidades y precios. Buscar por nombre, SKU, categoría o proveedor.
-3. **Imágenes:** subir, reemplazar o quitar una imagen desde el formulario de un producto. Se aceptan PNG, JPEG y WebP de hasta 2 MB. Las imágenes se guardan en la base de datos y requieren sesión para consultarlas.
-4. **Ajustes:** sumar o restar unidades con un motivo. El backend registra un movimiento y rechaza ajustes que dejarían stock negativo.
-5. **Proveedores:** registrar el nombre comercial, contacto, email, teléfono e identificación fiscal.
-6. **Facturas:** registrar una compra con proveedor, número, fecha, estado e importes. El stock aumenta, el costo de cada producto se actualiza al costo de la compra y se registra un movimiento `PURCHASE`. La operación se ejecuta en una transacción.
-7. **Mi cuenta:** cambiar la contraseña o cerrar sesión.
-8. **Users** (administrador): consultar las cuentas y sus roles.
+2. **Productos:** crear y editar ítems con SKU, nombre, categoría, formato, proveedor, stock mínimo, precio de venta e imagen. Cada ítem nuevo empieza con stock y costo en cero; no se carga cantidad en el catálogo.
+3. **Stock:** consultar cantidades, buscar productos y registrar salidas o consumos. Las entradas se registran mediante facturas. Editar el catálogo no modifica el stock ni el costo de compra.
+4. **Imágenes:** subir, reemplazar o quitar una imagen desde el formulario de Productos. Se aceptan PNG, JPEG y WebP de hasta 2 MB. Las imágenes se guardan en la base de datos y requieren sesión para consultarlas.
+5. **Ajustes:** descontar cantidades con un motivo. El backend registra un movimiento y rechaza ajustes que dejarían stock negativo.
+6. **Proveedores:** registrar el nombre comercial, contacto, email, teléfono e identificación fiscal.
+7. **Facturas:** registrar una compra con proveedor, número, fecha, estado e importes. El stock aumenta, el costo de cada producto se actualiza al costo de la compra y se registra un movimiento `PURCHASE`. La operación se ejecuta en una transacción.
+8. **Mi cuenta:** cambiar la contraseña o cerrar sesión.
+9. **Usuarios** (administrador): consultar las cuentas y sus roles.
 
 El **SKU es el único código del producto**: es obligatorio, único en el inventario y no depende del nombre. Se guarda como texto, por lo que conserva ceros iniciales. La relación con el proveedor se guarda por separado.
 
 ### Kegs de 50 L, 30 L o 20 L
 
-Al crear o editar un producto, selecciona **Formato → Keg (stock en litros)** y el tamaño: **50 L keg**, **30 L keg** o **20 L keg**.
+En **Productos**, al crear o editar un ítem, selecciona **Formato → Keg (stock en litros)** y el tamaño: **50 L keg**, **30 L keg** o **20 L keg**.
 
-- Stock actual, stock mínimo y ajustes se expresan en **litros**, incluidos saldos parciales (por ejemplo 42.5 L).
+- El stock comienza en cero y se recibe al cargar facturas. Stock disponible, stock mínimo y salidas se expresan en **litros**, incluidos saldos parciales (por ejemplo 42.5 L).
 - La tabla muestra litros disponibles y su equivalente en kegs: 75 L en un producto de 30 L equivalen a 2.5 kegs.
 - Costo y precio de venta se expresan **por keg** del tamaño seleccionado.
 - El dashboard calcula el valor como `(litros / tamaño del keg) × precio por keg`; el margen porcentual sigue utilizando los precios por keg.
@@ -31,6 +32,14 @@ Al crear o editar un producto, selecciona **Formato → Keg (stock en litros)** 
 - Los productos de ejemplo de 50 L pasan de 8 y 5 kegs a 400 y 250 L, respectivamente. Sus mínimos pasan de 3 kegs a 150 L y sus precios se mantienen.
 
 Para una base MySQL anterior, ejecutar una sola vez `database/migrations/004_keg_litres.sql` después de las migraciones que correspondan. Convierte stock, mínimos y movimientos existentes de unidades de keg a litros; conserva precios y líneas de factura. El script infiere 20/30 L del nombre y usa 50 L cuando no encuentra un tamaño: revisa esa asignación antes de ejecutar la conversión. Para instalación nueva, el SQL principal ya incluye tamaños y cantidades en litros.
+
+### Flujo de una entrega
+
+1. Crea el producto en **Productos**. Si es un keg, selecciona 50, 30 o 20 L. El ítem empieza en cero.
+2. Ve a **Facturas → Cargar factura**, elige proveedor, número y fecha.
+3. Selecciona cada ítem existente por SKU, indica cantidad y costo por unidad/keg y usa **Agregar ítem** para completar la entrega.
+4. Revisa los subtotales, el total y los litros/unidades que se recibirán. Registra la factura.
+5. Consulta el stock actualizado y el dashboard. Por ejemplo, 2 kegs de 30 L y 5 botellas ingresan como 60 L y 5 botellas en sus respectivos ítems.
 
 ### Qué significan los indicadores
 
@@ -46,13 +55,13 @@ Son estimaciones del inventario disponible: no representan ventas realizadas ni 
 
 ### Alcance actual
 
-La interfaz de facturas permite una línea por factura; la API admite varias. Los estados son `PENDING`, `PAID` y `OVERDUE`; todos incrementan el stock al registrar la compra. Los movimientos se almacenan, pero todavía no hay una pantalla de historial. El administrador puede consultar usuarios; no hay gestión de roles desde la interfaz.
+La interfaz de facturas permite agregar y quitar varias líneas, seleccionando los ítems ya creados, sus cantidades y costos. Muestra el subtotal, el total y el stock que se recibirá. Se rechazan facturas vacías, cantidades no positivas y números duplicados para el mismo proveedor. Los estados son `PENDING`, `PAID` y `OVERDUE`; todos incrementan el stock al registrar la compra. Los movimientos se almacenan, pero todavía no hay una pantalla de historial. El administrador puede consultar usuarios; no hay gestión de roles desde la interfaz.
 
 ## Arquitectura y estructura
 
 En desarrollo, Vite sirve React en el puerto 5173 y reenvía `/api` al backend del puerto 8080. React utiliza rutas relativas y la misma cookie de sesión; no hace falta configurar una URL de API en el frontend.
 
-En Docker y Railway, el frontend compilado se incluye dentro del JAR. Spring Boot sirve tanto las páginas como la API desde un único servicio. Las rutas `/stock`, `/suppliers` y `/invoices` se reenvían a `index.html` para que React Router las gestione.
+En Docker y Railway, el frontend compilado se incluye dentro del JAR. Spring Boot sirve tanto las páginas como la API desde un único servicio. Las rutas `/stock`, `/products`, `/suppliers` y `/invoices` se reenvían a `index.html` para que React Router las gestione.
 
 ```text
 bar-stock-control/
@@ -60,7 +69,9 @@ bar-stock-control/
 │   └── src/
 │       ├── App.tsx              # Navegación, dashboard, proveedores y facturas
 │       ├── Auth.tsx             # Login, registro, cuenta y usuarios
-│       ├── Stock.tsx            # Productos, ajustes e imágenes
+│       ├── Stock.tsx            # Consulta de cantidades y salidas
+│       ├── Products.tsx         # Catálogo e imágenes, sin stock inicial
+│       ├── Invoices.tsx         # Facturas con múltiples ítems
 │       └── api.ts               # HTTP, cookies de sesión y token CSRF
 ├── src/main/java/com/barstock/
 │   ├── api/                     # Endpoints de negocio y autenticación
@@ -262,7 +273,7 @@ Para usar Postman u otro cliente: llama a `GET /api/auth/csrf`, conserva la cook
 | `GET /api/dashboard` | Indicadores del inventario |
 | `GET, POST /api/products` | Listar o crear productos |
 | `PUT /api/products/{id}` | Editar producto |
-| `POST /api/products/{id}/adjust` | Ajustar stock |
+| `POST /api/products/{id}/adjust` | Registrar salida (cantidad negativa) |
 | `GET, POST, DELETE /api/products/{id}/image` | Leer, subir o quitar imagen; subida multipart con campo `file` |
 | `GET, POST /api/suppliers` | Listar o crear proveedores |
 | `GET, POST /api/invoices` | Listar o registrar facturas |
@@ -276,7 +287,7 @@ mvn test
 mvn package
 ```
 
-Las pruebas cubren registro, permisos, login, cambio de contraseña, validación de SKU, imágenes y actualización del stock al registrar una factura. El JAR generado en `target/bar-stock-0.1.0.jar` incluye el backend; para un paquete con la interfaz integrada, usa Docker, que copia la compilación de React dentro del JAR.
+Las pruebas cubren registro, permisos, login, cambio de contraseña, SKU, imágenes, catálogo sin stock inicial, facturas con múltiples ítems, conversión de kegs a litros, rechazo de duplicados y rollback si falla una línea. El JAR generado en `target/bar-stock-0.1.0.jar` incluye el backend; para un paquete con la interfaz integrada, usa Docker, que copia la compilación de React dentro del JAR.
 
 Dentro de `frontend`:
 

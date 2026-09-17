@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "supplier_invoices")
+@Table(name = "supplier_invoices", uniqueConstraints = @UniqueConstraint(columnNames = {"supplier_id", "invoice_number"}))
 public class SupplierInvoice {
     public enum Status { PENDING, PAID, OVERDUE }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,4 +38,3 @@ public class SupplierInvoice {
     public List<SupplierInvoiceItem> getItems() { return items; }
     public void setItems(List<SupplierInvoiceItem> items) { this.items = items; }
 }
-

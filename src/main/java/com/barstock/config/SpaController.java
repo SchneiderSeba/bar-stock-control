@@ -5,6 +5,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
 public class SpaController {
-    @RequestMapping(value = {"/", "/stock", "/suppliers", "/invoices", "/users", "/login", "/register"})
+    @RequestMapping(value = {"/", "/stock", "/products", "/suppliers", "/invoices", "/users", "/login", "/register"})
     public String forward() { return "forward:/index.html"; }
 }

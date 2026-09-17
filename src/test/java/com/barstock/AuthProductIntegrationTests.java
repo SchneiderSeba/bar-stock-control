@@ -46,7 +46,7 @@ class AuthProductIntegrationTests {
         mvc.perform(post("/api/products").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product.replace("TEST-IMAGE", "")))
                 .andExpect(status().isBadRequest());
         JsonNode saved=json.readTree(mvc.perform(post("/api/products").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.stock").value(0)).andReturn().getResponse().getContentAsString());
         long id=saved.get("id").asLong();
         mvc.perform(put("/api/products/"+id).session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(product.replace("Test product","Renamed product")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.sku").value("TEST-IMAGE")).andExpect(jsonPath("$.pulCode").doesNotExist());

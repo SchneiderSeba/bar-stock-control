@@ -64,6 +64,8 @@ public class ApiController {
     }
     @PostMapping("/products/{id}/adjust") @Transactional
     public Product adjustStock(@PathVariable Long id, @RequestBody StockAdjustment input) {
+        if (input.quantity() == null || input.quantity().signum() >= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las entradas de stock deben registrarse mediante una factura. Para una salida, ingresa una cantidad negativa");
         Product product = product(id);
         BigDecimal next = product.getStock().add(input.quantity());
         if (next.signum() < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock cannot be negative");
@@ -82,8 +84,10 @@ public class ApiController {
     @GetMapping("/invoices") public List<SupplierInvoice> listInvoices() { return invoices.findAllByOrderByInvoiceDateDescIdDesc(); }
     @PostMapping("/invoices") @ResponseStatus(HttpStatus.CREATED) @Transactional
     public SupplierInvoice createInvoice(@Valid @RequestBody InvoiceInput input) {
+        if (invoices.existsBySupplierIdAndInvoiceNumber(input.supplierId(), input.invoiceNumber().trim()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una factura con ese número para el proveedor");
         SupplierInvoice invoice = new SupplierInvoice();
-        invoice.setInvoiceNumber(input.invoiceNumber());
+        invoice.setInvoiceNumber(input.invoiceNumber().trim());
         invoice.setInvoiceDate(input.invoiceDate() == null ? LocalDate.now() : input.invoiceDate());
         invoice.setSupplier(suppliers.findById(input.supplierId()).orElseThrow(() -> notFound("Supplier")));
         invoice.setStatus(input.status() == null ? SupplierInvoice.Status.PENDING : input.status());
@@ -133,7 +137,7 @@ public class ApiController {
         p.setSku(i.sku()); p.setName(i.name()); p.setCategory(i.category()); p.setUnit(i.unit());
         if ("keg".equalsIgnoreCase(i.unit().trim())) p.setUnit("keg");
         p.setKegSizeLitres("keg".equals(p.getUnit()) ? i.kegSizeLitres() : null);
-        p.setStock(i.stock()); p.setMinimumStock(i.minimumStock()); p.setCostPrice(i.costPrice()); p.setSellingPrice(i.sellingPrice());
+        p.setMinimumStock(i.minimumStock()); p.setSellingPrice(i.sellingPrice());
         p.setActive(i.active());
         p.setSupplier(i.supplierId() == null ? null : suppliers.findById(i.supplierId()).orElseThrow(() -> notFound("Supplier")));
         return p;
@@ -141,11 +145,11 @@ public class ApiController {
 
     public record ProductInput(@NotBlank @Size(max=50) String sku,
             @NotBlank @Size(max=140) String name, @NotBlank @Size(max=80) String category, @NotBlank @Size(max=30) String unit,
-            @NotNull @DecimalMin("0") BigDecimal stock, @NotNull @DecimalMin("0") BigDecimal minimumStock,
-            @NotNull @DecimalMin("0") BigDecimal costPrice, @NotNull @DecimalMin("0") BigDecimal sellingPrice,
+            @NotNull @DecimalMin("0") BigDecimal minimumStock,
+            @NotNull @DecimalMin("0") BigDecimal sellingPrice,
             Long supplierId, boolean active, Integer kegSizeLitres) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
-    public record InvoiceLineInput(Long productId, BigDecimal quantity, BigDecimal unitCost) {}
-    public record InvoiceInput(String invoiceNumber, Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, List<InvoiceLineInput> items) {}
+    public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost) {}
+    public record InvoiceInput(@NotBlank String invoiceNumber, @NotNull Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, @NotEmpty List<@Valid InvoiceLineInput> items) {}
     public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount) {}
 }
