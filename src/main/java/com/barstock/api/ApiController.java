@@ -36,6 +36,11 @@ public class ApiController {
     @GetMapping("/health") public Map<String, String> health() { return Map.of("status", "ok"); }
 
     @GetMapping("/products") public List<Product> listProducts() { return products.findAllByOrderByNameAsc(); }
+    @GetMapping("/products/{id}/movements") public List<MovementView> productMovements(@PathVariable Long id) {
+        product(id);
+        return movements.findAllByProductIdOrderByCreatedAtDescIdDesc(id).stream().map(m -> new MovementView(m.getId(),m.getMovementType(),m.getQuantityChange(),m.getReferenceType(),m.getReferenceId(),m.getReason(),m.getCreatedAt())).toList();
+    }
+    public record MovementView(Long id,StockMovement.Type movementType,BigDecimal quantityChange,String referenceType,Long referenceId,String reason,java.time.Instant createdAt) {}
     @PostMapping("/products") @ResponseStatus(HttpStatus.CREATED)
     @Transactional public Product createProduct(@Valid @RequestBody ProductInput input) { return products.save(toProduct(new Product(), input)); }
     @PutMapping("/products/{id}") @Transactional public Product updateProduct(@PathVariable Long id, @Valid @RequestBody ProductInput input) {

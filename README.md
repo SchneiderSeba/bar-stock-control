@@ -279,6 +279,14 @@ Para usar Postman u otro cliente: llama a `GET /api/auth/csrf`, conserva la cook
 | `PUT /api/suppliers/{id}` | Editar datos del proveedor |
 | `GET, POST /api/invoices` | Listar o registrar facturas |
 
+## Ficha del producto
+
+Los nombres de productos en Dashboard, Stock, Productos, detalles de facturas y reportes de ventas enlazan a `/products/{id}`. Al seleccionar un producto en una factura, aparece también el enlace a su ficha junto a la línea. Los campos de nombre editables y las opciones del selector mantienen su función de edición/selección.
+
+La ficha muestra imagen, SKU interno, categoría, formato, estado, stock actual y mínimo, capacidad en ml, costo de compra, precio de venta, margen, valor del stock, ingresos y beneficio potenciales. Incluye todos los proveedores/SKU y sus datos de contacto, las compras en facturas y el historial de movimientos (compras, ventas, ajustes y mermas) ordenado del más reciente al más antiguo. Desde allí puedes editar el producto o ir a cargar una factura. Un ítem inexistente muestra un aviso con enlace al catálogo. La URL admite acceso directo y recarga.
+
+`GET /api/products/{id}/movements` devuelve únicamente los movimientos de ese producto y requiere sesión autenticada. El stock precargado de la demo puede no tener movimientos históricos; el historial comienza con operaciones registradas en la app.
+
 ## Reportes de ventas en CSV
 
 En **Reportes de ventas**, selecciona día, semana (7 días desde la fecha elegida) o mes calendario, y carga un CSV UTF-8 de hasta 2 MB / 10.000 filas. La tarjeta **Último reporte subido** y el historial muestran el archivo, fechas, productos y estado. Puedes consultar el detalle y descargar el CSV original.
