@@ -27,13 +27,15 @@ CREATE TABLE products (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(50) NOT NULL,
   keg_size_litres INT,
+  volume_ml INT,
+  version BIGINT NOT NULL DEFAULT 0,
   image_data LONGBLOB,
   image_content_type VARCHAR(255),
   image_version VARCHAR(255),
   name VARCHAR(140) NOT NULL,
   category VARCHAR(80) NOT NULL,
   unit VARCHAR(30) NOT NULL DEFAULT 'unidad',
-  stock DECIMAL(12,3) NOT NULL DEFAULT 0,
+  stock DECIMAL(18,6) NOT NULL DEFAULT 0,
   minimum_stock DECIMAL(12,3) NOT NULL DEFAULT 0,
   cost_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -91,7 +93,7 @@ CREATE TABLE stock_movements (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   product_id BIGINT UNSIGNED NOT NULL,
   movement_type ENUM('PURCHASE', 'SALE', 'ADJUSTMENT', 'WASTE') NOT NULL,
-  quantity_change DECIMAL(12,3) NOT NULL,
+  quantity_change DECIMAL(18,6) NOT NULL,
   reference_type VARCHAR(40),
   reference_id BIGINT UNSIGNED,
   reason VARCHAR(255),
@@ -111,3 +113,22 @@ INSERT INTO products (sku, name, category, unit, keg_size_litres, stock, minimum
 ('MIX-001', 'Tonic Water 200ml', 'Mixers', 'case', NULL, 4, 5, 18.00, 48.00, 2);
 
 INSERT INTO product_supplier_skus (product_id,supplier_id,sku) SELECT id,supplier_id,sku FROM products WHERE supplier_id IS NOT NULL;
+
+CREATE TABLE sales_reports (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  file_name VARCHAR(255) NOT NULL,
+  import_key VARCHAR(64) NOT NULL UNIQUE,
+  period VARCHAR(20) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  uploaded_at DATETIME(6) NOT NULL,
+  applied_at DATETIME(6),
+  row_count INT NOT NULL DEFAULT 0,
+  product_count INT NOT NULL DEFAULT 0,
+  csv_data LONGBLOB,
+  lines_json LONGTEXT,
+  errors_json LONGTEXT
+) ENGINE=InnoDB;
+
+UPDATE products SET volume_ml=700 WHERE sku='SPIR-001';

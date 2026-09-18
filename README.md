@@ -279,6 +279,30 @@ Para usar Postman u otro cliente: llama a `GET /api/auth/csrf`, conserva la cook
 | `PUT /api/suppliers/{id}` | Editar datos del proveedor |
 | `GET, POST /api/invoices` | Listar o registrar facturas |
 
+## Reportes de ventas en CSV
+
+En **Reportes de ventas**, selecciona día, semana (7 días desde la fecha elegida) o mes calendario, y carga un CSV UTF-8 de hasta 2 MB / 10.000 filas. La tarjeta **Último reporte subido** y el historial muestran el archivo, fechas, productos y estado. Puedes consultar el detalle y descargar el CSV original.
+
+```csv
+SKU,nombre del ítem,cantidad vendida,mililitros vendidos
+BEER-001,Guinness,10,5000
+SPIR-001,Jameson ingrediente de cóctel,3,150
+```
+
+Se aceptan comas, punto y coma o tabulaciones como separador, campos entre comillas y encabezados con espacios/acentos o guiones bajos. Las cantidades aceptan punto decimal, o coma decimal en CSV con punto y coma/campos entre comillas; no deben usar separadores de miles.
+
+**Mililitros vendidos es el total de la fila**, no el volumen de una porción. No se multiplica por la cantidad vendida. Si el sistema de ventas desglosa un cóctel en ingredientes, cada ingrediente debe llevar su propio SKU. El nombre es informativo: la identificación usa el SKU interno o los SKU de proveedores del catálogo. Si un código de proveedor coincide con varios productos, el reporte se rechaza y debes utilizar el SKU interno inequívoco.
+
+Se agrupan todas las filas/SKU del mismo producto y se convierte el total una sola vez: para kegs, 5.000 ml descuentan 5 L; para botellas o cajas, configura **Mililitros por unidad (capacidad)** en Productos. Ejemplo: 150 ml de una botella de 700 ml descuentan 0,214286 botellas. Para una caja indica su volumen completo. Las fracciones de stock se guardan con seis decimales. No se infiere la capacidad a partir del nombre.
+
+- **Listo para aplicar:** todos los ítems y cantidades son válidos. Revisa el detalle y pulsa **Aplicar ventas al stock**.
+- **Rechazado:** muestra errores por fila, capacidad faltante, stock insuficiente o período superpuesto. No cambia stock. Corrige el CSV/catálogo y vuelve a cargarlo; un archivo rechazado se puede revalidar.
+- **Aplicado:** registra movimientos `SALE`, con referencia al reporte, y descuenta todos los productos en una transacción. Se vuelve a comprobar stock y capacidad al aplicar. Un reporte aplicado no puede aplicarse de nuevo.
+
+No se permite cargar de nuevo el mismo archivo para un período listo/aplicado, ni aplicar períodos que se superpongan con otro reporte aplicado, para evitar descontar dos veces las mismas ventas. Por ejemplo, si ya aplicaste un día, no puedes aplicar luego una semana que incluya ese día. Usa una misma granularidad para cada tramo de fechas.
+
+API autenticada: `GET /api/sales-reports`, `POST /api/sales-reports` (multipart: `file`, `period=DAILY|WEEKLY|MONTHLY`, `startDate=YYYY-MM-DD`), `POST /api/sales-reports/{id}/apply` y `GET /api/sales-reports/{id}/file`. Escrituras requieren CSRF. Para MySQL existente aplica una sola vez `database/migrations/006_sales_reports.sql` después de 005; la instalación nueva ya incluye esta estructura. La demo H2 también pierde reportes al reiniciar.
+
 ## Compilación y pruebas
 
 Desde la raíz:

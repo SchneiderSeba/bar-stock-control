@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "products")
 public class Product {
+    @Version private long version;
     @OneToMany(mappedBy="product",cascade=CascadeType.ALL,orphanRemoval=true,fetch=FetchType.EAGER)
     private java.util.List<ProductSupplierSku> supplierSkus = new java.util.ArrayList<>();
     public java.util.List<ProductSupplierSku> getSupplierSkus() {
@@ -36,7 +37,10 @@ public class Product {
     @NotBlank @Column(nullable = false)
     private String unit = "unit";
     private Integer kegSizeLitres;
-    @DecimalMin("0.0") @Column(nullable = false, precision = 12, scale = 3)
+    private Integer volumeMl;
+    public Integer getVolumeMl() { return volumeMl; }
+    public void setVolumeMl(Integer volumeMl) { this.volumeMl=volumeMl; }
+    @DecimalMin("0.0") @Column(nullable = false, precision = 18, scale = 6)
     private BigDecimal stock = BigDecimal.ZERO;
     @DecimalMin("0.0") @Column(nullable = false, precision = 12, scale = 3)
     private BigDecimal minimumStock = BigDecimal.ZERO;

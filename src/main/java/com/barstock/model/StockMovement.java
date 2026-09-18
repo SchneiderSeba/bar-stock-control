@@ -11,7 +11,7 @@ public class StockMovement {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(optional = false) private Product product;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private Type movementType;
-    @Column(nullable = false, precision = 12, scale = 3) private BigDecimal quantityChange;
+    @Column(nullable = false, precision = 18, scale = 6) private BigDecimal quantityChange;
     private String referenceType;
     private Long referenceId;
     private String reason;
@@ -32,4 +32,3 @@ public class StockMovement {
     public void setReason(String reason) { this.reason = reason; }
     public Instant getCreatedAt() { return createdAt; }
 }
-

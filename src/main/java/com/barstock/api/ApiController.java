@@ -160,6 +160,7 @@ public class ApiController {
         p.setSku(i.sku()); p.setName(i.name()); p.setCategory(i.category()); p.setUnit(i.unit());
         if ("keg".equalsIgnoreCase(i.unit().trim())) p.setUnit("keg");
         p.setKegSizeLitres("keg".equals(p.getUnit()) ? i.kegSizeLitres() : null);
+        p.setVolumeMl(i.volumeMl());
         p.setMinimumStock(i.minimumStock()); p.setSellingPrice(i.sellingPrice());
         p.setActive(i.active());
         if(i.supplierSkus()!=null) {
@@ -183,7 +184,7 @@ public class ApiController {
             @NotBlank @Size(max=140) String name, @NotBlank @Size(max=80) String category, @NotBlank @Size(max=30) String unit,
             @NotNull @DecimalMin("0") BigDecimal minimumStock,
             @NotNull @DecimalMin("0") BigDecimal sellingPrice,
-            Long supplierId, boolean active, Integer kegSizeLitres, List<@Valid SupplierSkuInput> supplierSkus) {}
+            Long supplierId, boolean active, Integer kegSizeLitres, List<@Valid SupplierSkuInput> supplierSkus, @Min(1) Integer volumeMl) {}
     public record SupplierSkuInput(@NotNull Long supplierId,@NotBlank @Size(max=50) String sku) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
     public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost, @Size(max=50) String supplierSku) {}
