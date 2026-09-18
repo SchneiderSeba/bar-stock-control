@@ -9,7 +9,7 @@ Aplicación para administrar el stock de un bar, los precios de sus productos y 
 Las cuentas registradas comparten el inventario del mismo bar. Después de iniciar sesión, puedes:
 
 1. **Dashboard:** consultar el valor del inventario, ingresos potenciales, ganancias potenciales y productos con stock bajo.
-2. **Productos:** crear y editar ítems con SKU, nombre, categoría, formato, proveedor, stock mínimo, precio de venta e imagen. Cada ítem nuevo empieza con stock y costo en cero; no se carga cantidad en el catálogo.
+2. **Productos:** crear y editar ítems con SKU, nombre, categoría, formato, proveedores y sus SKU, stock mínimo, precio de venta e imagen. Cada ítem nuevo empieza con stock y costo en cero; no se carga cantidad en el catálogo.
 3. **Stock:** consultar cantidades, buscar productos y registrar salidas o consumos. Las entradas se registran mediante facturas. Editar el catálogo no modifica el stock ni el costo de compra.
 4. **Imágenes:** subir, reemplazar o quitar una imagen desde el formulario de Productos. Se aceptan PNG, JPEG y WebP de hasta 2 MB. Las imágenes se guardan en la base de datos y requieren sesión para consultarlas.
 5. **Ajustes:** descontar cantidades con un motivo. El backend registra un movimiento y rechaza ajustes que dejarían stock negativo.
@@ -18,7 +18,7 @@ Las cuentas registradas comparten el inventario del mismo bar. Después de inici
 8. **Mi cuenta:** cambiar la contraseña o cerrar sesión.
 9. **Usuarios** (administrador): consultar las cuentas y sus roles.
 
-El **SKU es el único código del producto**: es obligatorio, único en el inventario y no depende del nombre. Se guarda como texto, por lo que conserva ceros iniciales. La relación con el proveedor se guarda por separado.
+Cada producto conserva un **SKU interno**, obligatorio y único en el inventario. Además tiene una lista de **proveedores y SKU del proveedor**: por ejemplo, Guinness puede tener `50055` con un proveedor y `9878` con otro; ambos ingresan al mismo stock. Un mismo proveedor puede tener varios códigos para el mismo ítem, pero cada combinación proveedor + SKU solo puede identificar un producto. Los códigos se guardan como texto y conservan ceros iniciales. En Productos → Editar ítem → Proveedores y sus SKU puedes agregar o quitar esas asignaciones. En Proveedores → Editar proveedor puedes actualizar nombre, contacto, email, teléfono y Tax ID sin cambiar su identidad ni sus relaciones.
 
 ### Kegs de 50 L, 30 L o 20 L
 
@@ -37,7 +37,7 @@ Para una base MySQL anterior, ejecutar una sola vez `database/migrations/004_keg
 
 1. Crea el producto en **Productos**. Si es un keg, selecciona 50, 30 o 20 L. El ítem empieza en cero.
 2. Ve a **Facturas → Cargar factura**, elige proveedor, número y fecha.
-3. Selecciona cada ítem existente por SKU, indica cantidad y costo por unidad/keg y usa **Agregar ítem** para completar la entrega.
+3. Selecciona cada ítem por el SKU del proveedor elegido, indica cantidad y costo por unidad/keg y usa **Agregar ítem** para completar la entrega.
 4. Revisa los subtotales, el total y los litros/unidades que se recibirán. Registra la factura.
 5. Consulta el stock actualizado y el dashboard. Por ejemplo, 2 kegs de 30 L y 5 botellas ingresan como 60 L y 5 botellas en sus respectivos ítems.
 
@@ -276,6 +276,7 @@ Para usar Postman u otro cliente: llama a `GET /api/auth/csrf`, conserva la cook
 | `POST /api/products/{id}/adjust` | Registrar salida (cantidad negativa) |
 | `GET, POST, DELETE /api/products/{id}/image` | Leer, subir o quitar imagen; subida multipart con campo `file` |
 | `GET, POST /api/suppliers` | Listar o crear proveedores |
+| `PUT /api/suppliers/{id}` | Editar datos del proveedor |
 | `GET, POST /api/invoices` | Listar o registrar facturas |
 
 ## Compilación y pruebas
@@ -287,7 +288,7 @@ mvn test
 mvn package
 ```
 
-Las pruebas cubren registro, permisos, login, cambio de contraseña, SKU, imágenes, catálogo sin stock inicial, facturas con múltiples ítems, conversión de kegs a litros, rechazo de duplicados y rollback si falla una línea. El JAR generado en `target/bar-stock-0.1.0.jar` incluye el backend; para un paquete con la interfaz integrada, usa Docker, que copia la compilación de React dentro del JAR.
+Las pruebas cubren registro, permisos, login, cambio de contraseña, SKU internos y por proveedor, edición de proveedores, códigos históricos de facturas, imágenes, catálogo sin stock inicial, facturas con múltiples ítems, conversión de kegs a litros, rechazo de duplicados y rollback si falla una línea. El JAR generado en `target/bar-stock-0.1.0.jar` incluye el backend; para un paquete con la interfaz integrada, usa Docker, que copia la compilación de React dentro del JAR.
 
 Dentro de `frontend`:
 
@@ -319,3 +320,5 @@ Railway despliega la rama `main` usando el `Dockerfile`. El contenedor escucha e
 | Respuesta 403 | Comprobar rol para rutas admin y token CSRF para escrituras |
 | Imagen rechazada | PNG, JPEG o WebP real, máximo 2 MB |
 | Cambios desaparecen | Se está usando H2; configurar MySQL para persistencia |
+
+Para bases MySQL existentes, aplica una sola vez `database/migrations/005_supplier_skus.sql` después de 004. Crea la relación de múltiples SKU, conserva las asignaciones proveedor/SKU actuales y agrega el código histórico a las líneas de factura. La instalación nueva ya incluye esta estructura en `database/bar_stock.sql`. Al editar un código luego de una compra, la factura conserva el SKU que se usó al registrarla.

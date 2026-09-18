@@ -1,10 +1,11 @@
-import {useEffect,useState,type FormEvent,type ReactNode} from 'react'
+import {useEffect,useState,type ReactNode} from 'react'
 import {Navigate,NavLink,Route,Routes,useLocation} from 'react-router-dom'
 import {api} from './api'
 import {AuthGate,Account,Users} from './Auth'
 import Stock from './Stock'
 import Products from './Products'
 import Invoices from './Invoices'
+import Suppliers from './Suppliers'
 import {stockUnit,pricedQuantity} from './inventory'
 import type {DashboardData,Invoice,Product,Supplier,User} from './types'
 
@@ -24,9 +25,3 @@ function Dashboard({data,products}:{data:DashboardData;products:Product[]}){cons
 
 function Metric({label,value,note,accent,warn}:{label:string;value:string;note:string;accent?:boolean;warn?:boolean}){return <article className={`metric ${accent?'accent':''} ${warn?'warn':''}`}><p>{label}</p><strong>{value}</strong><small>{note}</small></article>}
 function Card({title,action,children}:{title:string;action:string;children:ReactNode}){return <article className="card"><div className="card-head"><h3>{title}</h3><span>{action}</span></div>{children}</article>}
-function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}){return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modal-head"><h2>{title}</h2><button onClick={onClose}>×</button></div>{children}</div></div>}
-
-function Suppliers({suppliers,reload}:{suppliers:Supplier[];reload:()=>Promise<void>}){const[open,setOpen]=useState(false);return <><div className="toolbar"><p className="section-copy">Keep ordering contacts and account details together.</p><button className="primary" onClick={()=>setOpen(true)}>＋ Add supplier</button></div><div className="supplier-grid">{suppliers.map(s=><article key={s.id}><div className="supplier-avatar">{s.name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><h3>{s.name}</h3><p>{s.contactName||'No contact person'}</p><dl><dt>Email</dt><dd>{s.email||'—'}</dd><dt>Phone</dt><dd>{s.phone||'—'}</dd><dt>Tax ID</dt><dd>{s.taxId||'—'}</dd></dl></article>)}</div>{open&&<SupplierForm onClose={()=>setOpen(false)} onDone={async()=>{setOpen(false);await reload()}}/>}</>}
-function SupplierForm({onClose,onDone}:{onClose:()=>void;onDone:()=>void}){async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));await api.createSupplier(f);onDone()}return <Modal title="Add a supplier" onClose={onClose}><form onSubmit={submit} className="form-grid"><label className="wide">Company name<input name="name" required/></label><label>Contact person<input name="contactName"/></label><label>Tax ID<input name="taxId"/></label><label>Email<input name="email" type="email"/></label><label>Phone<input name="phone"/></label><FormActions onClose={onClose}/></form></Modal>}
-
-function FormActions({onClose}:{onClose:()=>void}){return <div className="form-actions wide"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button className="primary">Save</button></div>}

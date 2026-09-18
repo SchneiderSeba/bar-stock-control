@@ -8,6 +8,20 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "products")
 public class Product {
+    @OneToMany(mappedBy="product",cascade=CascadeType.ALL,orphanRemoval=true,fetch=FetchType.EAGER)
+    private java.util.List<ProductSupplierSku> supplierSkus = new java.util.ArrayList<>();
+    public java.util.List<ProductSupplierSku> getSupplierSkus() {
+        if (supplierSkus.isEmpty() && supplier != null) {
+            ProductSupplierSku legacy=new ProductSupplierSku();
+            legacy.setProduct(this); legacy.setSupplier(supplier); legacy.setSku(sku);
+            return java.util.List.of(legacy);
+        }
+        return supplierSkus;
+    }
+    public void replaceSupplierSkus(java.util.List<ProductSupplierSku> entries) {
+        supplierSkus.removeIf(existing -> !entries.contains(existing));
+        entries.forEach(entry -> { entry.setProduct(this); if(!supplierSkus.contains(entry)) supplierSkus.add(entry); });
+    }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @NotBlank @Column(nullable = false, unique = true)

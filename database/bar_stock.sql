@@ -49,6 +49,16 @@ CREATE TABLE products (
   CONSTRAINT chk_products_prices CHECK (cost_price >= 0 AND selling_price >= 0)
 ) ENGINE=InnoDB;
 
+CREATE TABLE product_supplier_skus (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  product_id BIGINT UNSIGNED NOT NULL,
+  supplier_id BIGINT UNSIGNED NOT NULL,
+  sku VARCHAR(50) NOT NULL,
+  UNIQUE KEY uk_supplier_sku (supplier_id, sku),
+  CONSTRAINT fk_supplier_sku_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  CONSTRAINT fk_supplier_sku_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+) ENGINE=InnoDB;
+
 CREATE TABLE supplier_invoices (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   invoice_number VARCHAR(80) NOT NULL,
@@ -68,6 +78,7 @@ CREATE TABLE supplier_invoice_items (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   invoice_id BIGINT UNSIGNED NOT NULL,
   product_id BIGINT UNSIGNED NOT NULL,
+  supplier_sku VARCHAR(50),
   quantity DECIMAL(12,3) NOT NULL,
   unit_cost DECIMAL(12,2) NOT NULL,
   line_total DECIMAL(14,2) NOT NULL,
@@ -98,3 +109,5 @@ INSERT INTO products (sku, name, category, unit, keg_size_litres, stock, minimum
 ('BEER-002', 'Heineken Keg 50L', 'Beer', 'keg', 50, 250, 150, 165.00, 490.00, 1),
 ('SPIR-001', 'Jameson 700ml', 'Spirits', 'bottle', NULL, 18, 6, 24.50, 112.00, 2),
 ('MIX-001', 'Tonic Water 200ml', 'Mixers', 'case', NULL, 4, 5, 18.00, 48.00, 2);
+
+INSERT INTO product_supplier_skus (product_id,supplier_id,sku) SELECT id,supplier_id,sku FROM products WHERE supplier_id IS NOT NULL;

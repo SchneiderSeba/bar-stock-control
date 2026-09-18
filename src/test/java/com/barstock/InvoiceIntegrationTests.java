@@ -27,7 +27,7 @@ class InvoiceIntegrationTests {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         JsonNode product = products.get(0);
         long productId = product.get("id").asLong();
-        long supplierId = product.get("supplier").get("id").asLong();
+        long supplierId = product.get("supplierSkus").get(0).get("supplier").get("id").asLong();
         String body = """
             {"invoiceNumber":"TEST-001","supplierId":%d,"invoiceDate":"2026-09-17",
              "items":[{"productId":%d,"quantity":2,"unitCost":10.50}]}

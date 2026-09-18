@@ -26,8 +26,10 @@ public class ApiController {
     private final SupplierRepository suppliers;
     private final InvoiceRepository invoices;
     private final StockMovementRepository movements;
+    private final ProductSupplierSkuRepository supplierSkus;
 
-    public ApiController(ProductRepository products, SupplierRepository suppliers, InvoiceRepository invoices, StockMovementRepository movements) {
+    public ApiController(ProductRepository products, SupplierRepository suppliers, InvoiceRepository invoices, StockMovementRepository movements, ProductSupplierSkuRepository supplierSkus) {
+        this.supplierSkus=supplierSkus;
         this.products = products; this.suppliers = suppliers; this.invoices = invoices; this.movements = movements;
     }
 
@@ -35,8 +37,8 @@ public class ApiController {
 
     @GetMapping("/products") public List<Product> listProducts() { return products.findAllByOrderByNameAsc(); }
     @PostMapping("/products") @ResponseStatus(HttpStatus.CREATED)
-    public Product createProduct(@Valid @RequestBody ProductInput input) { return products.save(toProduct(new Product(), input)); }
-    @PutMapping("/products/{id}") public Product updateProduct(@PathVariable Long id, @Valid @RequestBody ProductInput input) {
+    @Transactional public Product createProduct(@Valid @RequestBody ProductInput input) { return products.save(toProduct(new Product(), input)); }
+    @PutMapping("/products/{id}") @Transactional public Product updateProduct(@PathVariable Long id, @Valid @RequestBody ProductInput input) {
         return products.save(toProduct(product(id), input));
     }
     @GetMapping("/products/{id}/image") public ResponseEntity<byte[]> image(@PathVariable Long id) {
@@ -80,8 +82,18 @@ public class ApiController {
     @GetMapping("/suppliers") public List<Supplier> listSuppliers() { return suppliers.findAllByOrderByNameAsc(); }
     @PostMapping("/suppliers") @ResponseStatus(HttpStatus.CREATED)
     public Supplier createSupplier(@Valid @RequestBody Supplier supplier) { supplier.setId(null); return suppliers.save(supplier); }
+    @PutMapping("/suppliers/{id}") public Supplier updateSupplier(@PathVariable Long id,@Valid @RequestBody Supplier input) {
+        Supplier supplier=suppliers.findById(id).orElseThrow(() -> notFound("Supplier"));
+        supplier.setName(input.getName()); supplier.setContactName(input.getContactName());
+        supplier.setEmail(input.getEmail()); supplier.setPhone(input.getPhone()); supplier.setTaxId(input.getTaxId());
+        return suppliers.save(supplier);
+    }
 
-    @GetMapping("/invoices") public List<SupplierInvoice> listInvoices() { return invoices.findAllByOrderByInvoiceDateDescIdDesc(); }
+    @GetMapping("/invoices") @Transactional public List<SupplierInvoice> listInvoices() {
+        List<SupplierInvoice> result=invoices.findAllByOrderByInvoiceDateDescIdDesc();
+        result.forEach(invoice -> invoice.getItems().forEach(item -> item.getProduct().getSupplierSkus().size()));
+        return result;
+    }
     @PostMapping("/invoices") @ResponseStatus(HttpStatus.CREATED) @Transactional
     public SupplierInvoice createInvoice(@Valid @RequestBody InvoiceInput input) {
         if (invoices.existsBySupplierIdAndInvoiceNumber(input.supplierId(), input.invoiceNumber().trim()))
@@ -95,7 +107,18 @@ public class ApiController {
         BigDecimal total = BigDecimal.ZERO;
         for (InvoiceLineInput line : input.items()) {
             Product product = product(line.productId());
+            String supplierSku=line.supplierSku();
+            if(supplierSku != null) {
+                supplierSku=supplierSku.trim();
+                String code=supplierSku;
+                if(product.getSupplierSkus().stream().noneMatch(entry -> entry.getSupplier().getId().equals(input.supplierId()) && entry.getSku().equals(code)))
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"El SKU no está asignado a este producto y proveedor");
+            } else {
+                supplierSku=product.getSupplierSkus().stream().filter(entry -> entry.getSupplier().getId().equals(input.supplierId()))
+                    .map(ProductSupplierSku::getSku).findFirst().orElse(null);
+            }
             SupplierInvoiceItem item = new SupplierInvoiceItem();
+            item.setSupplierSku(supplierSku);
             item.setInvoice(invoice); item.setProduct(product); item.setQuantity(line.quantity()); item.setUnitCost(line.unitCost());
             item.setLineTotal(line.quantity().multiply(line.unitCost()));
             invoice.getItems().add(item);
@@ -139,7 +162,20 @@ public class ApiController {
         p.setKegSizeLitres("keg".equals(p.getUnit()) ? i.kegSizeLitres() : null);
         p.setMinimumStock(i.minimumStock()); p.setSellingPrice(i.sellingPrice());
         p.setActive(i.active());
-        p.setSupplier(i.supplierId() == null ? null : suppliers.findById(i.supplierId()).orElseThrow(() -> notFound("Supplier")));
+        if(i.supplierSkus()!=null) {
+            java.util.Set<String> seen=new java.util.HashSet<>();
+            java.util.List<ProductSupplierSku> entries=new java.util.ArrayList<>();
+            for(SupplierSkuInput link:i.supplierSkus()) {
+                String code=link.sku().trim();
+                if(!seen.add(link.supplierId()+":"+code)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Proveedor y SKU repetidos");
+                if(supplierSkus.existsBySupplierIdAndSkuAndProductIdNot(link.supplierId(),code,p.getId()==null?-1L:p.getId()))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"Ese SKU del proveedor ya pertenece a otro producto");
+                ProductSupplierSku entry=p.getSupplierSkus().stream().filter(old -> old.getId()!=null && old.getSupplier().getId().equals(link.supplierId()) && old.getSku().equals(code)).findFirst().orElseGet(ProductSupplierSku::new);
+                entry.setSupplier(suppliers.findById(link.supplierId()).orElseThrow(() -> notFound("Supplier"))); entry.setSku(code); entries.add(entry);
+            }
+            p.replaceSupplierSkus(entries);
+            p.setSupplier(null);
+        } else if(i.supplierId()!=null) p.setSupplier(suppliers.findById(i.supplierId()).orElseThrow(() -> notFound("Supplier")));
         return p;
     }
 
@@ -147,9 +183,10 @@ public class ApiController {
             @NotBlank @Size(max=140) String name, @NotBlank @Size(max=80) String category, @NotBlank @Size(max=30) String unit,
             @NotNull @DecimalMin("0") BigDecimal minimumStock,
             @NotNull @DecimalMin("0") BigDecimal sellingPrice,
-            Long supplierId, boolean active, Integer kegSizeLitres) {}
+            Long supplierId, boolean active, Integer kegSizeLitres, List<@Valid SupplierSkuInput> supplierSkus) {}
+    public record SupplierSkuInput(@NotNull Long supplierId,@NotBlank @Size(max=50) String sku) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
-    public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost) {}
+    public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost, @Size(max=50) String supplierSku) {}
     public record InvoiceInput(@NotBlank String invoiceNumber, @NotNull Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, @NotEmpty List<@Valid InvoiceLineInput> items) {}
     public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount) {}
 }

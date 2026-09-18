@@ -7,6 +7,9 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "supplier_invoice_items")
 public class SupplierInvoiceItem {
+    @Column(length=50) private String supplierSku;
+    public String getSupplierSku() { return supplierSku; }
+    public void setSupplierSku(String sku) { supplierSku=sku; }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @JsonIgnore @ManyToOne(optional = false) private SupplierInvoice invoice;
@@ -27,4 +30,3 @@ public class SupplierInvoiceItem {
     public BigDecimal getLineTotal() { return lineTotal; }
     public void setLineTotal(BigDecimal lineTotal) { this.lineTotal = lineTotal; }
 }
-
