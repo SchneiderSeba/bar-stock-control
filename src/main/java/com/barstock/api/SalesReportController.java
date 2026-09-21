@@ -29,7 +29,7 @@ public class SalesReportController {
     public SalesReportController(SalesReportRepository reports,ProductRepository products,StockMovementRepository movements,ObjectMapper json,EntityManager em) {
         this.reports=reports;this.products=products;this.movements=movements;this.json=json;this.em=em;
     }
-    public record Line(Long productId,String productName,String sku,BigDecimal sold,BigDecimal soldMl,BigDecimal stockDecrease,String stockUnit,Integer volumeMl) {}
+    public record Line(Long productId,String productName,String sku,BigDecimal sold,BigDecimal soldMl,BigDecimal stockDecrease,String stockUnit,Integer volumeMl,BigDecimal revenuePricePerStockUnit) {}
     public record View(Long id,String fileName,SalesReport.Period period,LocalDate startDate,LocalDate endDate,SalesReport.Status status,
                        Instant uploadedAt,Instant appliedAt,int rowCount,int productCount,List<Line> lines,List<String> errors) {}
     private View view(SalesReport r) {
@@ -84,7 +84,8 @@ public class SalesReportController {
                     BigDecimal soldMl=decimal(row.get(ml));
                     int capacity=capacity(p);
                     if(soldMl.scale()>3||soldMl.precision()-soldMl.scale()>12)throw bad("mililitros fuera de rango");
-                    lines.add(new Line(p.getId(),p.getName(),code,sold,soldMl,BigDecimal.ZERO,"keg".equals(p.getUnit())?"L":p.getUnit(),capacity));
+                    BigDecimal revenuePrice="keg".equals(p.getUnit())?p.getSellingPrice().divide(BigDecimal.valueOf(p.getKegSizeLitres()),java.math.MathContext.DECIMAL64):p.getSellingPrice();
+                    lines.add(new Line(p.getId(),p.getName(),code,sold,soldMl,BigDecimal.ZERO,"keg".equals(p.getUnit())?"L":p.getUnit(),capacity,revenuePrice));
                 }catch(Exception e){if(errors.size()<100)errors.add("Fila "+(i+1)+": "+message(e));}
             }
             if(report.rowCount==0)errors.add("El CSV no contiene ventas");
@@ -95,13 +96,13 @@ public class SalesReportController {
                 Line old=grouped.get(line.productId());
                 if(old==null)grouped.put(line.productId(),line);
                 else grouped.put(line.productId(),new Line(line.productId(),line.productName(),Arrays.asList(old.sku().split(" / ",-1)).contains(line.sku())?old.sku():old.sku()+" / "+line.sku(),
-                    old.sold().add(line.sold()),old.soldMl().add(line.soldMl()),BigDecimal.ZERO,line.stockUnit(),line.volumeMl()));
+                    old.sold().add(line.sold()),old.soldMl().add(line.soldMl()),BigDecimal.ZERO,line.stockUnit(),line.volumeMl(),line.revenuePricePerStockUnit()));
             }
             lines.clear();
             for(Line line:grouped.values()) {
                 BigDecimal decrease=line.soldMl().divide(BigDecimal.valueOf(line.volumeMl()),6,java.math.RoundingMode.HALF_UP);
                 if(decrease.precision()-decrease.scale()>12)errors.add("Cantidad demasiado grande para "+line.productName());
-                lines.add(new Line(line.productId(),line.productName(),line.sku(),line.sold(),line.soldMl(),decrease,line.stockUnit(),line.volumeMl()));
+                lines.add(new Line(line.productId(),line.productName(),line.sku(),line.sold(),line.soldMl(),decrease,line.stockUnit(),line.volumeMl(),line.revenuePricePerStockUnit()));
             }
             Map<Long,BigDecimal> totals=new HashMap<>();lines.forEach(line->totals.merge(line.productId(),line.stockDecrease(),BigDecimal::add));
             report.productCount=totals.size();

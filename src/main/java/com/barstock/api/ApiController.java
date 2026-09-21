@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -27,9 +28,11 @@ public class ApiController {
     private final InvoiceRepository invoices;
     private final StockMovementRepository movements;
     private final ProductSupplierSkuRepository supplierSkus;
+    private final SalesReportRepository salesReports;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
 
-    public ApiController(ProductRepository products, SupplierRepository suppliers, InvoiceRepository invoices, StockMovementRepository movements, ProductSupplierSkuRepository supplierSkus) {
-        this.supplierSkus=supplierSkus;
+    public ApiController(ProductRepository products, SupplierRepository suppliers, InvoiceRepository invoices, StockMovementRepository movements, ProductSupplierSkuRepository supplierSkus, SalesReportRepository salesReports, com.fasterxml.jackson.databind.ObjectMapper json) {
+        this.supplierSkus=supplierSkus; this.salesReports=salesReports; this.json=json;
         this.products = products; this.suppliers = suppliers; this.invoices = invoices; this.movements = movements;
     }
 
@@ -154,7 +157,37 @@ public class ApiController {
         BigDecimal revenue = all.stream().map(p -> p.getPricedQuantity().multiply(p.getSellingPrice())).reduce(BigDecimal.ZERO, BigDecimal::add);
         long low = all.stream().filter(p -> p.getStock().compareTo(p.getMinimumStock()) <= 0).count();
         BigDecimal purchases = invoices.findAll().stream().map(SupplierInvoice::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new Dashboard(stockValue, revenue, revenue.subtract(stockValue), purchases, all.size(), low);
+        LocalDate currentStart=LocalDate.now(java.time.ZoneId.of("Europe/Dublin")).withDayOfMonth(1),currentEnd=currentStart.plusMonths(1).minusDays(1);
+        LocalDate previousStart=currentStart.minusMonths(1),previousEnd=currentStart.minusDays(1);
+        Map<Long,BigDecimal> currentPrices=new java.util.HashMap<>();
+        all.forEach(p -> currentPrices.put(p.getId(),"keg".equals(p.getUnit())?p.getSellingPrice().divide(BigDecimal.valueOf(p.getKegSizeLitres()),java.math.MathContext.DECIMAL64):p.getSellingPrice()));
+        MonthlyComparison comparison=new MonthlyComparison(month(previousStart,previousEnd,currentPrices),month(currentStart,currentEnd,currentPrices));
+        return new Dashboard(stockValue, revenue, revenue.subtract(stockValue), purchases, all.size(), low,comparison);
+    }
+
+    private MonthMetrics month(LocalDate start,LocalDate end,Map<Long,BigDecimal> currentPrices) {
+        BigDecimal sales=BigDecimal.ZERO;int count=0;
+        for(SalesReport report:salesReports.findAllByStatus(SalesReport.Status.APPLIED)) {
+            LocalDate overlapStart=report.startDate.isAfter(start)?report.startDate:start;
+            LocalDate overlapEnd=report.endDate.isBefore(end)?report.endDate:end;
+            if(overlapStart.isAfter(overlapEnd))continue;
+            long reportDays=ChronoUnit.DAYS.between(report.startDate,report.endDate)+1;
+            long overlapDays=ChronoUnit.DAYS.between(overlapStart,overlapEnd)+1;
+            BigDecimal ratio=BigDecimal.valueOf(overlapDays).divide(BigDecimal.valueOf(reportDays),java.math.MathContext.DECIMAL64);
+            try {
+                for(com.fasterxml.jackson.databind.JsonNode line:json.readTree(report.linesJson)) {
+                    BigDecimal quantity=line.path("stockDecrease").decimalValue();
+                    com.fasterxml.jackson.databind.JsonNode snapshot=line.get("revenuePricePerStockUnit");
+                    BigDecimal price=snapshot!=null&&!snapshot.isNull()?snapshot.decimalValue():currentPrices.getOrDefault(line.path("productId").asLong(),BigDecimal.ZERO);
+                    sales=sales.add(quantity.multiply(price).multiply(ratio));
+                }
+                count++;
+            } catch(Exception ignored) { /* Invalid legacy rows are excluded instead of breaking the dashboard. */ }
+        }
+        BigDecimal purchases=invoices.findAll().stream().filter(i -> !i.getInvoiceDate().isBefore(start)&&!i.getInvoiceDate().isAfter(end))
+                .map(SupplierInvoice::getTotal).reduce(BigDecimal.ZERO,BigDecimal::add);
+        sales=sales.setScale(2,java.math.RoundingMode.HALF_UP);purchases=purchases.setScale(2,java.math.RoundingMode.HALF_UP);
+        return new MonthMetrics(start,end,sales,purchases,sales.subtract(purchases),count);
     }
 
     private Product product(Long id) { return products.findById(id).orElseThrow(() -> notFound("Product")); }
@@ -194,5 +227,7 @@ public class ApiController {
     public record StockAdjustment(BigDecimal quantity, String reason) {}
     public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost, @Size(max=50) String supplierSku) {}
     public record InvoiceInput(@NotBlank String invoiceNumber, @NotNull Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, @NotEmpty List<@Valid InvoiceLineInput> items) {}
-    public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount) {}
+    public record MonthMetrics(LocalDate startDate,LocalDate endDate,BigDecimal sales,BigDecimal purchases,BigDecimal profit,int appliedReportCount) {}
+    public record MonthlyComparison(MonthMetrics previous,MonthMetrics current) {}
+    public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount,MonthlyComparison monthlyComparison) {}
 }

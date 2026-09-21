@@ -7,6 +7,7 @@ import java.util.*;
 import java.time.LocalDate;
 public interface SalesReportRepository extends JpaRepository<SalesReport,Long> {
     List<SalesReport> findAllByOrderByUploadedAtDescIdDesc();
+    List<SalesReport> findAllByStatus(SalesReport.Status status);
     Optional<SalesReport> findByImportKey(String key);
     @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select r from SalesReport r where r.id=:id")
     Optional<SalesReport> locked(@Param("id") Long id);

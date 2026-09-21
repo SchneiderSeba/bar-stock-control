@@ -2,6 +2,18 @@
 
 Aplicación para administrar el stock de un bar, los precios de sus productos y las facturas de proveedores. Backend en Java 17 con Spring Boot y frontend en React + TypeScript.
 
+## Comparación mensual del dashboard
+
+El dashboard reemplaza el banner inicial por tres gráficos que comparan el mes calendario actual con el anterior (zona horaria `Europe/Dublin`):
+
+- **Ventas estimadas:** suma el stock descontado por reportes de ventas `APPLIED` multiplicado por el precio de venta que tenía cada producto cuando se cargó el CSV. En los kegs convierte primero los litros vendidos a kegs equivalentes.
+- **Compras de stock:** suma el total de todas las facturas recibidas cuya fecha pertenece al mes, independientemente de su estado de pago.
+- **Profit estimado:** ventas estimadas menos compras de stock registradas durante el mes. Es una comparación operativa del dinero vendido contra el stock comprado en ese período; no sustituye una cuenta contable de beneficio bruto ni distribuye el costo de una compra entre los meses en que se consume.
+
+Cada gráfico muestra ambos importes y el cambio porcentual frente al mes anterior. El mes actual incluye la información registrada hasta el momento. Solo cuentan reportes aplicados; los reportes listos o rechazados no afectan estadísticas ni stock. Si un reporte semanal cruza un límite de mes, su venta se distribuye proporcionalmente según los días que caen en cada mes. Los reportes diarios y mensuales se asignan directamente a sus fechas.
+
+Desde esta versión, el precio se guarda dentro de las líneas normalizadas al cargar el reporte, por lo que editar después el precio del catálogo no modifica estadísticas anteriores. Para reportes aplicados antes de esta actualización que no tengan esa captura, se usa el precio actual del producto. Las métricas anteriores de valor, ingreso y beneficio potencial del stock siguen debajo de los gráficos.
+
 [Probar la demo](https://bar-stock-control-production.up.railway.app) · [Repositorio](https://github.com/SchneiderSeba/bar-stock-control)
 
 ## Cómo funciona
