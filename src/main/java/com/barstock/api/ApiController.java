@@ -46,6 +46,26 @@ public class ApiController {
     public record MovementView(Long id,StockMovement.Type movementType,BigDecimal quantityChange,String referenceType,Long referenceId,String reason,java.time.Instant createdAt) {}
     @PostMapping("/products") @ResponseStatus(HttpStatus.CREATED)
     @Transactional public Product createProduct(@Valid @RequestBody ProductInput input) { return products.save(toProduct(new Product(), input)); }
+    @PostMapping("/products/bulk") @ResponseStatus(HttpStatus.CREATED)
+    @Transactional public List<Product> createProductsBulk(@Valid @RequestBody BulkProductInput input) {
+        suppliers.findById(input.supplierId()).orElseThrow(() -> notFound("Supplier"));
+        java.util.Set<String> existingSkus=products.findAll().stream().map(Product::getSku).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> batchSkus=new java.util.HashSet<>(),batchSupplierSkus=new java.util.HashSet<>();
+        List<ProductInput> normalized=new java.util.ArrayList<>();
+        for(BulkProductLineInput line:input.products()) {
+            String sku=line.sku().trim(),supplierSku=line.supplierSku().trim();
+            if(!batchSkus.add(sku))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SKU interno repetido en la carga: "+sku);
+            if(existingSkus.contains(sku))throw new ResponseStatusException(HttpStatus.CONFLICT,"El SKU interno ya existe: "+sku);
+            if(!batchSupplierSkus.add(supplierSku))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SKU del proveedor repetido en la carga: "+supplierSku);
+            if(supplierSkus.existsBySupplierIdAndSkuAndProductIdNot(input.supplierId(),supplierSku,-1L))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"El SKU del proveedor ya existe: "+supplierSku);
+            normalized.add(new ProductInput(sku,line.name().trim(),line.category().trim(),line.unit().trim(),line.minimumStock(),line.sellingPrice(),
+                null,true,line.kegSizeLitres(),List.of(new SupplierSkuInput(input.supplierId(),supplierSku)),line.volumeMl()));
+        }
+        List<Product> created=normalized.stream().map(line->products.save(toProduct(new Product(),line))).toList();
+        products.flush();
+        return created;
+    }
     @PutMapping("/products/{id}") @Transactional public Product updateProduct(@PathVariable Long id, @Valid @RequestBody ProductInput input) {
         return products.save(toProduct(product(id), input));
     }
@@ -223,6 +243,11 @@ public class ApiController {
             @NotNull @DecimalMin("0") BigDecimal minimumStock,
             @NotNull @DecimalMin("0") BigDecimal sellingPrice,
             Long supplierId, boolean active, Integer kegSizeLitres, List<@Valid SupplierSkuInput> supplierSkus, @Min(1) Integer volumeMl) {}
+    public record BulkProductInput(@NotNull Long supplierId,@NotEmpty @Size(max=100) List<@Valid BulkProductLineInput> products) {}
+    public record BulkProductLineInput(@NotBlank @Size(max=50) String sku,@NotBlank @Size(max=50) String supplierSku,
+            @NotBlank @Size(max=140) String name,@NotBlank @Size(max=80) String category,@NotBlank @Size(max=30) String unit,
+            @NotNull @DecimalMin("0") BigDecimal minimumStock,@NotNull @DecimalMin("0") BigDecimal sellingPrice,
+            Integer kegSizeLitres,@Min(1) Integer volumeMl) {}
     public record SupplierSkuInput(@NotNull Long supplierId,@NotBlank @Size(max=50) String sku) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
     public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost, @Size(max=50) String supplierSku) {}

@@ -284,6 +284,7 @@ Para usar Postman u otro cliente: llama a `GET /api/auth/csrf`, conserva la cook
 | `GET /api/admin/users` | Lista de usuarios, solo administrador |
 | `GET /api/dashboard` | Indicadores del inventario |
 | `GET, POST /api/products` | Listar o crear productos |
+| `POST /api/products/bulk` | Crear hasta 100 productos para un mismo proveedor en una operación atómica |
 | `PUT /api/products/{id}` | Editar producto |
 | `POST /api/products/{id}/adjust` | Registrar salida (cantidad negativa) |
 | `GET, POST, DELETE /api/products/{id}/image` | Leer, subir o quitar imagen; subida multipart con campo `file` |

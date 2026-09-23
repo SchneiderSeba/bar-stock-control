@@ -21,6 +21,30 @@ class SupplierSkuIntegrationTests {
         return json.readTree(mvc.perform(post("/api/suppliers").with(csrf()).contentType(MediaType.APPLICATION_JSON)
             .content("{\"name\":\""+name+"\"}")).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong();
     }
+    @Test void bulkCreationAssignsOneSupplierAndRollsBackEveryRowOnError() throws Exception {
+        long supplier=supplier("Bulk supplier");
+        String valid="""
+            {"supplierId":%d,"products":[
+              {"sku":"BULK-BEER","supplierSku":"SUP-BEER","name":"Bulk beer","category":"Beer","unit":"bottle","volumeMl":330,"minimumStock":2,"sellingPrice":6},
+              {"sku":"BULK-KEG","supplierSku":"SUP-KEG","name":"Bulk keg","category":"Beer","unit":"keg","kegSizeLitres":50,"minimumStock":50,"sellingPrice":500}
+            ]}
+            """.formatted(supplier);
+        mvc.perform(post("/api/products/bulk").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(valid))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].stock").value(0)).andExpect(jsonPath("$[0].supplierSkus[0].supplier.id").value(supplier))
+            .andExpect(jsonPath("$[1].supplierSkus[0].sku").value("SUP-KEG"));
+
+        String invalid="""
+            {"supplierId":%d,"products":[
+              {"sku":"BULK-ROLLBACK-A","supplierSku":"SUP-ROLLBACK-A","name":"Rollback A","category":"Beer","unit":"bottle","volumeMl":330,"minimumStock":0,"sellingPrice":1},
+              {"sku":"BULK-ROLLBACK-B","supplierSku":"SUP-ROLLBACK-B","name":"Rollback B","category":"Beer","unit":"keg","kegSizeLitres":10,"minimumStock":0,"sellingPrice":1}
+            ]}
+            """.formatted(supplier);
+        mvc.perform(post("/api/products/bulk").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(invalid))
+            .andExpect(status().isBadRequest());
+        JsonNode all=json.readTree(mvc.perform(get("/api/products")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for(JsonNode product:all)assertFalse(product.get("sku").asText().startsWith("BULK-ROLLBACK-"));
+    }
     @Test void supplierCodesReceiveIntoOneProductAndRemainOnHistoricalInvoices() throws Exception {
         long a=supplier("SKU supplier A"),b=supplier("SKU supplier B");
         String body="""
