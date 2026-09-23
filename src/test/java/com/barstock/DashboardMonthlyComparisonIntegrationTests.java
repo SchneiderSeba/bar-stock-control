@@ -64,9 +64,9 @@ class DashboardMonthlyComparisonIntegrationTests {
         assertEquals(100,value(after,"previous","sales")-value(before,"previous","sales"),0.001);
         assertEquals(400,value(after,"previous","purchases")-value(before,"previous","purchases"),0.001);
         assertEquals(-300,value(after,"previous","profit")-value(before,"previous","profit"),0.001);
-        assertEquals(500,value(after,"current","sales")-value(before,"current","sales"),0.001);
+        assertEquals(400,value(after,"current","sales")-value(before,"current","sales"),0.001);
         assertEquals(400,value(after,"current","purchases")-value(before,"current","purchases"),0.001);
-        assertEquals(100,value(after,"current","profit")-value(before,"current","profit"),0.001);
+        assertEquals(0,value(after,"current","profit")-value(before,"current","profit"),0.001);
         assertEquals(value(before,"previous","appliedReportCount")+1,value(after,"previous","appliedReportCount"),0.001);
         assertEquals(value(before,"current","appliedReportCount")+1,value(after,"current","appliedReportCount"),0.001);
         assertEquals(previous.toString(),after.at("/monthlyComparison/previous/startDate").asText());

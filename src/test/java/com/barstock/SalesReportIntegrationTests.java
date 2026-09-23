@@ -47,10 +47,11 @@ class SalesReportIntegrationTests {
         String csv="\uFEFFSKU;nombre del ítem;cantidad vendida;mililitros vendidos\r\nEXT-SALE-GUINNESS;\"Guinness; draught\";5;500\r\nSALE-GUINNESS;Guinness;4;2000\r\nSALE-SPIRIT;Cocktail ingredient;3;300\r\n";
         JsonNode report=upload(csv,"DAILY","2031-07-01");long id=report.get("id").asLong();
         assertEquals("READY",report.get("status").asText());assertEquals(2,report.get("productCount").asInt());
-        assertEquals(2.5,report.get("lines").get(0).get("stockDecrease").asDouble());assertEquals(300,stock(keg));
+        assertEquals(2.5,report.get("lines").get(0).get("stockDecrease").asDouble());
+        assertEquals(3,report.get("lines").get(1).get("stockDecrease").asDouble());assertEquals(300,stock(keg));
         long before=movements.count();
         mvc.perform(post("/api/sales-reports/"+id+"/apply").with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPLIED"));
-        assertEquals(297.5,stock(keg));assertEquals(9.7,stock(bottle));assertEquals(before+2,movements.count());
+        assertEquals(297.5,stock(keg));assertEquals(7,stock(bottle));assertEquals(before+2,movements.count());
         mvc.perform(post("/api/sales-reports/"+id+"/apply").with(csrf())).andExpect(status().isConflict());
         mvc.perform(multipart("/api/sales-reports").file(new MockMultipartFile("file","renamed.csv","text/csv",csv.getBytes(StandardCharsets.UTF_8)))
             .param("period","DAILY").param("startDate","2031-07-01").with(csrf())).andExpect(status().isConflict());
@@ -66,12 +67,12 @@ class SalesReportIntegrationTests {
         JsonNode malformed=upload("sku,cantidad vendida,mililitros vendidos\n\"unclosed,1,10","MONTHLY","2031-09-18");
         assertEquals("REJECTED",malformed.get("status").asText());assertEquals("2031-09-01",malformed.get("startDate").asText());assertEquals("2031-09-30",malformed.get("endDate").asText());
         JsonNode ready=upload(valid,"DAILY","2031-08-01");assertEquals("READY",ready.get("status").asText());
-        assertEquals(0.071429,ready.get("lines").get(1).get("stockDecrease").asDouble());
+        assertEquals(2,ready.get("lines").get(1).get("stockDecrease").asDouble());
         mvc.perform(post("/api/products/"+keg+"/adjust").with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":-300}"))
             .andExpect(status().isOk());
         mvc.perform(post("/api/sales-reports/"+ready.get("id").asLong()+"/apply").with(csrf())).andExpect(status().isBadRequest());
         assertEquals(10,stock(bottle));
-        long unconfigured=product("SALE-NO-VOLUME","bottle",null);
+        long unconfigured=product("SALE-NO-VOLUME","case",null);
         JsonNode missingVolume=upload("SKU,cantidad vendida,mililitros vendidos\nSALE-NO-VOLUME,1,10","DAILY","2031-10-01");
         assertEquals("REJECTED",missingVolume.get("status").asText());assertTrue(missingVolume.get("errors").get(0).asText().contains("Configura los ml"));
     }

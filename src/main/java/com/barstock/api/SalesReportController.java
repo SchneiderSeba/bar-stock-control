@@ -33,8 +33,16 @@ public class SalesReportController {
     public record View(Long id,String fileName,SalesReport.Period period,LocalDate startDate,LocalDate endDate,SalesReport.Status status,
                        Instant uploadedAt,Instant appliedAt,int rowCount,int productCount,List<Line> lines,List<String> errors) {}
     private View view(SalesReport r) {
-        try {return new View(r.id,r.fileName,r.period,r.startDate,r.endDate,r.status,r.uploadedAt,r.appliedAt,r.rowCount,r.productCount,
-            json.readValue(r.linesJson,new TypeReference<List<Line>>(){}),json.readValue(r.errorsJson,new TypeReference<List<String>>(){}));}
+        try {
+            List<Line> lines=json.readValue(r.linesJson,new TypeReference<List<Line>>(){});
+            // Recalculate pending reports created before bottle quantities became the
+            // source of truth, so they can be reviewed and applied without re-uploading.
+            if(r.status==SalesReport.Status.READY)lines=lines.stream().map(line->"bottle".equalsIgnoreCase(line.stockUnit())
+                ? new Line(line.productId(),line.productName(),line.sku(),line.sold(),line.soldMl(),line.sold().setScale(6,java.math.RoundingMode.HALF_UP),line.stockUnit(),1,line.revenuePricePerStockUnit())
+                : line).toList();
+            return new View(r.id,r.fileName,r.period,r.startDate,r.endDate,r.status,r.uploadedAt,r.appliedAt,r.rowCount,r.productCount,
+                lines,json.readValue(r.errorsJson,new TypeReference<List<String>>(){}));
+        }
         catch(Exception e){throw new IllegalStateException(e);}
     }
     @GetMapping public List<View> list(){return reports.findAllByOrderByUploadedAtDescIdDesc().stream().map(this::view).toList();}
@@ -89,8 +97,9 @@ public class SalesReportController {
                 }catch(Exception e){if(errors.size()<100)errors.add("Fila "+(i+1)+": "+message(e));}
             }
             if(report.rowCount==0)errors.add("El CSV no contiene ventas");
-            // The CSV may repeat ingredients or use several supplier SKUs for one product.
-            // Sum total millilitres first, then convert once per product.
+            // The CSV may repeat products or use several supplier SKUs for one product.
+            // Bottles are already reported as units sold; other formats still use the
+            // reported millilitres and their configured stock capacity.
             Map<Long,Line> grouped=new LinkedHashMap<>();
             for(Line line:lines) {
                 Line old=grouped.get(line.productId());
@@ -100,7 +109,9 @@ public class SalesReportController {
             }
             lines.clear();
             for(Line line:grouped.values()) {
-                BigDecimal decrease=line.soldMl().divide(BigDecimal.valueOf(line.volumeMl()),6,java.math.RoundingMode.HALF_UP);
+                BigDecimal decrease="bottle".equalsIgnoreCase(line.stockUnit())
+                    ? line.sold().setScale(6,java.math.RoundingMode.HALF_UP)
+                    : line.soldMl().divide(BigDecimal.valueOf(line.volumeMl()),6,java.math.RoundingMode.HALF_UP);
                 if(decrease.precision()-decrease.scale()>12)errors.add("Cantidad demasiado grande para "+line.productName());
                 lines.add(new Line(line.productId(),line.productName(),line.sku(),line.sold(),line.soldMl(),decrease,line.stockUnit(),line.volumeMl(),line.revenuePricePerStockUnit()));
             }
@@ -137,6 +148,8 @@ public class SalesReportController {
     }
     private boolean overlap(SalesReport r){return reports.existsByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(SalesReport.Status.APPLIED,r.endDate,r.startDate);}
     private int capacity(Product p){
+        // Bottle sales use the CSV quantity, so volume is not needed for conversion.
+        if("bottle".equalsIgnoreCase(p.getUnit()))return 1;
         if("keg".equals(p.getUnit())||"L".equalsIgnoreCase(p.getUnit()))return 1000;
         if("ml".equalsIgnoreCase(p.getUnit()))return 1;
         if(p.getVolumeMl()==null||p.getVolumeMl()<=0)throw bad("Configura los ml por "+p.getUnit()+" en Productos: "+p.getName());

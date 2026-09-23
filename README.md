@@ -313,7 +313,7 @@ Se aceptan comas, punto y coma o tabulaciones como separador, campos entre comil
 
 **Mililitros vendidos es el total de la fila**, no el volumen de una porción. No se multiplica por la cantidad vendida. Si el sistema de ventas desglosa un cóctel en ingredientes, cada ingrediente debe llevar su propio SKU. El nombre es informativo: la identificación usa el SKU interno o los SKU de proveedores del catálogo. Si un código de proveedor coincide con varios productos, el reporte se rechaza y debes utilizar el SKU interno inequívoco.
 
-Se agrupan todas las filas/SKU del mismo producto y se convierte el total una sola vez: para kegs, 5.000 ml descuentan 5 L; para botellas o cajas, configura **Mililitros por unidad (capacidad)** en Productos. Ejemplo: 150 ml de una botella de 700 ml descuentan 0,214286 botellas. Para una caja indica su volumen completo. Las fracciones de stock se guardan con seis decimales. No se infiere la capacidad a partir del nombre.
+Se agrupan todas las filas/SKU del mismo producto y se calcula el descuento una sola vez: para kegs, 5.000 ml descuentan 5 L; para botellas, **cantidad vendida** se descuenta directamente como número de botellas. Para cajas configura **Mililitros por unidad (capacidad)** en Productos e indica el volumen completo de la caja. Las fracciones de stock se guardan con seis decimales y se muestran con hasta tres. No se infiere la capacidad a partir del nombre.
 
 - **Listo para aplicar:** todos los ítems y cantidades son válidos. Revisa el detalle y pulsa **Aplicar ventas al stock**.
 - **Rechazado:** muestra errores por fila, capacidad faltante, stock insuficiente o período superpuesto. No cambia stock. Corrige el CSV/catálogo y vuelve a cargarlo; un archivo rechazado se puede revalidar.
