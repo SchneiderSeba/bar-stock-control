@@ -177,15 +177,22 @@ public class ApiController {
         BigDecimal revenue = all.stream().map(p -> p.getPricedQuantity().multiply(p.getSellingPrice())).reduce(BigDecimal.ZERO, BigDecimal::add);
         long low = all.stream().filter(p -> p.getStock().compareTo(p.getMinimumStock()) <= 0).count();
         BigDecimal purchases = invoices.findAll().stream().map(SupplierInvoice::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        LocalDate currentStart=LocalDate.now(java.time.ZoneId.of("Europe/Dublin")).withDayOfMonth(1),currentEnd=currentStart.plusMonths(1).minusDays(1);
+        LocalDate today=LocalDate.now(java.time.ZoneId.of("Europe/Dublin"));
+        LocalDate currentStart=today.withDayOfMonth(1),currentEnd=currentStart.plusMonths(1).minusDays(1);
         LocalDate previousStart=currentStart.minusMonths(1),previousEnd=currentStart.minusDays(1);
         Map<Long,BigDecimal> currentPrices=new java.util.HashMap<>();
         all.forEach(p -> currentPrices.put(p.getId(),"keg".equals(p.getUnit())?p.getSellingPrice().divide(BigDecimal.valueOf(p.getKegSizeLitres()),java.math.MathContext.DECIMAL64):p.getSellingPrice()));
-        MonthlyComparison comparison=new MonthlyComparison(month(previousStart,previousEnd,currentPrices),month(currentStart,currentEnd,currentPrices));
-        return new Dashboard(stockValue, revenue, revenue.subtract(stockValue), purchases, all.size(), low,comparison);
+        MonthMetrics previousMonth=period(previousStart,previousEnd,currentPrices),currentMonth=period(currentStart,currentEnd,currentPrices);
+        MonthlyComparison comparison=new MonthlyComparison(previousMonth,currentMonth);
+        LocalDate weekStart=today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        Map<DashboardPeriod,PeriodComparison> comparisons=new java.util.EnumMap<>(DashboardPeriod.class);
+        comparisons.put(DashboardPeriod.DAY,new PeriodComparison(period(today.minusDays(1),today.minusDays(1),currentPrices),period(today,today,currentPrices)));
+        comparisons.put(DashboardPeriod.WEEK,new PeriodComparison(period(weekStart.minusWeeks(1),weekStart.minusDays(1),currentPrices),period(weekStart,weekStart.plusDays(6),currentPrices)));
+        comparisons.put(DashboardPeriod.MONTH,new PeriodComparison(previousMonth,currentMonth));
+        return new Dashboard(stockValue, revenue, revenue.subtract(stockValue), purchases, all.size(), low,comparison,comparisons);
     }
 
-    private MonthMetrics month(LocalDate start,LocalDate end,Map<Long,BigDecimal> currentPrices) {
+    private MonthMetrics period(LocalDate start,LocalDate end,Map<Long,BigDecimal> currentPrices) {
         BigDecimal sales=BigDecimal.ZERO;int count=0;
         for(SalesReport report:salesReports.findAllByStatus(SalesReport.Status.APPLIED)) {
             LocalDate overlapStart=report.startDate.isAfter(start)?report.startDate:start;
@@ -254,5 +261,7 @@ public class ApiController {
     public record InvoiceInput(@NotBlank String invoiceNumber, @NotNull Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, @NotEmpty List<@Valid InvoiceLineInput> items) {}
     public record MonthMetrics(LocalDate startDate,LocalDate endDate,BigDecimal sales,BigDecimal purchases,BigDecimal profit,int appliedReportCount) {}
     public record MonthlyComparison(MonthMetrics previous,MonthMetrics current) {}
-    public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount,MonthlyComparison monthlyComparison) {}
+    public enum DashboardPeriod { DAY,WEEK,MONTH }
+    public record PeriodComparison(MonthMetrics previous,MonthMetrics current) {}
+    public record Dashboard(BigDecimal stockValue, BigDecimal potentialRevenue, BigDecimal potentialProfit, BigDecimal purchases, long productCount, long lowStockCount,MonthlyComparison monthlyComparison,Map<DashboardPeriod,PeriodComparison> comparisons) {}
 }

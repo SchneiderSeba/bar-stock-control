@@ -71,5 +71,13 @@ class DashboardMonthlyComparisonIntegrationTests {
         assertEquals(value(before,"current","appliedReportCount")+1,value(after,"current","appliedReportCount"),0.001);
         assertEquals(previous.toString(),after.at("/monthlyComparison/previous/startDate").asText());
         assertEquals(current.toString(),after.at("/monthlyComparison/current/startDate").asText());
+        assertEquals(value(after,"previous","sales"),after.at("/comparisons/MONTH/previous/sales").asDouble(),0.001);
+        assertEquals(value(after,"current","purchases"),after.at("/comparisons/MONTH/current/purchases").asDouble(),0.001);
+        LocalDate today=LocalDate.now(java.time.ZoneId.of("Europe/Dublin"));
+        LocalDate weekStart=today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        assertEquals(today.toString(),after.at("/comparisons/DAY/current/startDate").asText());
+        assertEquals(today.minusDays(1).toString(),after.at("/comparisons/DAY/previous/startDate").asText());
+        assertEquals(weekStart.toString(),after.at("/comparisons/WEEK/current/startDate").asText());
+        assertEquals(weekStart.minusWeeks(1).toString(),after.at("/comparisons/WEEK/previous/startDate").asText());
     }
 }
