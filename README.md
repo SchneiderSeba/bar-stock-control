@@ -29,11 +29,21 @@ Las cuentas registradas comparten el inventario del mismo bar. Después de inici
 4. **Imágenes:** subir, reemplazar o quitar una imagen desde el formulario de Productos. Se aceptan PNG, JPEG y WebP de hasta 2 MB. Las imágenes se guardan en la base de datos y requieren sesión para consultarlas.
 5. **Ajustes:** descontar cantidades con un motivo. El backend registra un movimiento y rechaza ajustes que dejarían stock negativo.
 6. **Proveedores:** registrar el nombre comercial, contacto, email, teléfono e identificación fiscal.
-7. **Facturas:** registrar una compra con proveedor, número, fecha, estado e importes. El stock aumenta, el costo de cada producto se actualiza al costo de la compra y se registra un movimiento `PURCHASE`. La operación se ejecuta en una transacción.
+7. **Facturas:** registrar una compra con proveedor, número, fecha, estado e importes, manualmente o fotografiando la factura para proponer los datos con OCR. El stock aumenta, el costo de cada producto se actualiza al costo de la compra y se registra un movimiento `PURCHASE`. La operación se ejecuta en una transacción.
 8. **Mi cuenta:** cambiar la contraseña o cerrar sesión.
 9. **Usuarios** (administrador): consultar las cuentas y sus roles.
 
 Cada producto conserva un **SKU interno**, obligatorio y único en el inventario. Además tiene una lista de **proveedores y SKU del proveedor**: por ejemplo, Guinness puede tener `50055` con un proveedor y `9878` con otro; ambos ingresan al mismo stock. Un mismo proveedor puede tener varios códigos para el mismo ítem, pero cada combinación proveedor + SKU solo puede identificar un producto. Los códigos se guardan como texto y conservan ceros iniciales. En Productos → Editar ítem → Proveedores y sus SKU puedes agregar o quitar esas asignaciones. En Proveedores → Editar proveedor puedes actualizar nombre, contacto, email, teléfono y Tax ID sin cambiar su identidad ni sus relaciones.
+
+### Fotografiar facturas con OCR
+
+En **Facturas → Cargar factura**, selecciona primero el proveedor y pulsa **Tomar foto o elegir imagen**. En móviles, el campo solicita preferentemente la cámara trasera; en escritorio permite elegir una imagen. Se aceptan imágenes de hasta 12 MB.
+
+El frontend usa `runonweb/ocr` con PP-OCRv6 `small`. El modelo se descarga en la primera lectura (aproximadamente 31 MB), queda en la caché del navegador y ejecuta el reconocimiento localmente mediante WebGPU o WASM. La fotografía no se envía a la API Java ni se guarda en la base de datos.
+
+El parser agrupa los fragmentos OCR por su posición visual, busca el número y la fecha de la factura y relaciona las líneas mediante los SKU configurados para el proveedor o el SKU interno. Cantidad y costo son sugerencias: la foto, el texto reconocido, la fila original y la confianza se muestran para revisión. El usuario puede editar, agregar o quitar líneas. **Nada modifica el stock hasta pulsar “Registrar factura e ingresar stock”**; en ese momento se utiliza el mismo endpoint transaccional de facturas manuales.
+
+La precisión depende de iluminación, enfoque, orientación y estructura de la factura. Si no hay una coincidencia exacta de SKU, la interfaz conserva el texto detectado y permite completar la línea manualmente. Para obtener mejores resultados, fotografía el documento completo, de frente y con los SKU, cantidades y precios legibles.
 
 ### Kegs de 50 L, 30 L o 20 L
 
@@ -52,7 +62,7 @@ Para una base MySQL anterior, ejecutar una sola vez `database/migrations/004_keg
 
 1. Crea el producto en **Productos**. Si es un keg, selecciona 50, 30 o 20 L. El ítem empieza en cero.
 2. Ve a **Facturas → Cargar factura**, elige proveedor, número y fecha.
-3. Selecciona cada ítem por el SKU del proveedor elegido, indica cantidad y costo por unidad/keg y usa **Agregar ítem** para completar la entrega.
+3. Fotografía la factura para proponer sus líneas o selecciona cada ítem manualmente por el SKU del proveedor. Confirma cantidad y costo por unidad/keg y usa **Agregar ítem** cuando sea necesario.
 4. Revisa los subtotales, el total y los litros/unidades que se recibirán. Registra la factura.
 5. Consulta el stock actualizado y el dashboard. Por ejemplo, 2 kegs de 30 L y 5 botellas ingresan como 60 L y 5 botellas en sus respectivos ítems.
 
@@ -70,7 +80,7 @@ Son estimaciones del inventario disponible: no representan ventas realizadas ni 
 
 ### Alcance actual
 
-La interfaz de facturas permite agregar y quitar varias líneas, seleccionando los ítems ya creados, sus cantidades y costos. Muestra el subtotal, el total y el stock que se recibirá. Se rechazan facturas vacías, cantidades no positivas y números duplicados para el mismo proveedor. Los estados son `PENDING`, `PAID` y `OVERDUE`; todos incrementan el stock al registrar la compra. Los movimientos se almacenan, pero todavía no hay una pantalla de historial. El administrador puede consultar usuarios; no hay gestión de roles desde la interfaz.
+La interfaz de facturas permite agregar y quitar varias líneas, seleccionando los ítems ya creados, sus cantidades y costos, o partir de sugerencias OCR revisables. Muestra el subtotal, el total y el stock que se recibirá. Se rechazan facturas vacías, cantidades no positivas y números duplicados para el mismo proveedor. Los estados son `PENDING`, `PAID` y `OVERDUE`; todos incrementan el stock al registrar la compra. Los movimientos se almacenan, pero todavía no hay una pantalla de historial. El administrador puede consultar usuarios; no hay gestión de roles desde la interfaz.
 
 ## Arquitectura y estructura
 
@@ -86,7 +96,8 @@ bar-stock-control/
 │       ├── Auth.tsx             # Login, registro, cuenta y usuarios
 │       ├── Stock.tsx            # Consulta de cantidades y salidas
 │       ├── Products.tsx         # Catálogo e imágenes, sin stock inicial
-│       ├── Invoices.tsx         # Facturas con múltiples ítems
+│       ├── Invoices.tsx         # Facturas manuales o fotografiadas con OCR
+│       ├── invoiceOcr.ts        # Parser local de metadatos, filas y SKU
 │       └── api.ts               # HTTP, cookies de sesión y token CSRF
 ├── src/main/java/com/barstock/
 │   ├── api/                     # Endpoints de negocio y autenticación

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:ocr": "node --experimental-strip-types tests/invoiceOcr.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "react-dom": "latest",
     "react-router-dom": "latest",
     "recharts": "^3.10.1",
+    "runonweb": "^0.0.1",
     "typescript": "latest",
     "vite": "latest"
   },
