@@ -39,7 +39,7 @@ Cada producto conserva un **SKU interno**, obligatorio y único en el inventario
 
 En **Facturas → Cargar factura**, selecciona primero el proveedor y pulsa **Tomar foto o elegir imagen**. En móviles, el campo solicita preferentemente la cámara trasera; en escritorio permite elegir una imagen. Se aceptan imágenes de hasta 12 MB.
 
-El frontend usa `runonweb/ocr` con PP-OCRv6 `small`. El modelo se descarga en la primera lectura (aproximadamente 31 MB), queda en la caché del navegador y ejecuta el reconocimiento localmente mediante WebGPU o WASM. La fotografía no se envía a la API Java ni se guarda en la base de datos.
+El frontend usa `runonweb/ocr` con PP-OCRv6 `small`. Los archivos del modelo se sirven desde `/ocr-models` en la misma aplicación para que el navegador no dependa del CORS de Hugging Face. Se descargan en la primera lectura (aproximadamente 31 MB), quedan en la caché del navegador y el reconocimiento se ejecuta localmente mediante WebGPU o WASM. La fotografía no se envía a la API Java ni se guarda en la base de datos. El script `frontend/scripts/patch-runonweb.mjs`, ejecutado por `postinstall`, configura la versión `0.0.1` del paquete para usar esas rutas locales y falla de forma explícita si su fuente cambia.
 
 El parser agrupa los fragmentos OCR por su posición visual, busca el número y la fecha de la factura y relaciona las líneas mediante los SKU configurados para el proveedor o el SKU interno. Cantidad y costo son sugerencias: la foto, el texto reconocido, la fila original y la confianza se muestran para revisión. El usuario puede editar, agregar o quitar líneas. **Nada modifica el stock hasta pulsar “Registrar factura e ingresar stock”**; en ese momento se utiliza el mismo endpoint transaccional de facturas manuales.
 
