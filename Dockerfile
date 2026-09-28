@@ -1,6 +1,7 @@
 FROM node:22-alpine AS frontend
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
+COPY frontend/scripts ./scripts
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
@@ -19,4 +20,3 @@ COPY --from=backend /app/target/bar-stock-0.1.0.jar app.jar
 ENV PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT} -jar app.jar"]
-
