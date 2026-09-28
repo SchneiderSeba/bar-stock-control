@@ -27,7 +27,7 @@ public class Product {
     private Long id;
     @NotBlank @Column(nullable = false, unique = true)
     private String sku;
-    @JsonIgnore @Lob @Column(columnDefinition = "LONGBLOB") private byte[] imageData;
+    @JsonIgnore @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONGVARBINARY) private byte[] imageData;
     @JsonIgnore private String imageContentType;
     private String imageVersion;
     @NotBlank @Column(nullable = false)

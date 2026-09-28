@@ -4,7 +4,7 @@ import java.time.*;
 
 @Entity @Table(name="sales_reports")
 public class SalesReport {
-    @com.fasterxml.jackson.annotation.JsonIgnore @Lob @Column(columnDefinition="LONGBLOB") public byte[] csvData;
+    @com.fasterxml.jackson.annotation.JsonIgnore @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONGVARBINARY) public byte[] csvData;
     public enum Period { DAILY,WEEKLY,MONTHLY }
     public enum Status { READY,REJECTED,APPLIED }
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY) public Long id;
@@ -16,8 +16,8 @@ public class SalesReport {
     @Enumerated(EnumType.STRING) @Column(nullable=false) public Status status;
     @Column(nullable=false) public Instant uploadedAt=Instant.now();
     public Instant appliedAt;
-    @Lob @Column(columnDefinition="LONGTEXT") public String linesJson="[]";
-    @Lob @Column(columnDefinition="LONGTEXT") public String errorsJson="[]";
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONGVARCHAR) public String linesJson="[]";
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONGVARCHAR) public String errorsJson="[]";
     public int rowCount;
     public int productCount;
 }

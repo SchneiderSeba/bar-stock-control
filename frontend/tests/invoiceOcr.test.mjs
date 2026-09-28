@@ -35,3 +35,10 @@ test('accepts an internal SKU and leaves missing cost for user confirmation',()=
  assert.equal(draft.lines[0].quantity,'4')
  assert.equal(draft.lines[0].unitCost,'')
 })
+
+test('extracts an unknown supplier SKU so the invoice can request product details',()=>{
+ const draft=parseInvoiceOcr([line('NEW-77 Tonic Water 24 1.50 36.00',10,100,520)],'',catalog)
+ assert.deepEqual(draft.unknownLines.map(({supplierSku,productName,quantity,unitCost})=>({supplierSku,productName,quantity,unitCost})),[
+  {supplierSku:'NEW-77',productName:'Tonic Water',quantity:'24',unitCost:'1.50'},
+ ])
+})

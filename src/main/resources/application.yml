@@ -31,11 +31,11 @@ server:
 spring:
   config:
     activate:
-      on-profile: mysql
+      on-profile: postgres
   datasource:
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/bar_stock?useSSL=false&serverTimezone=UTC}
-    username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:}
+    url: ${DATABASE_URL}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update

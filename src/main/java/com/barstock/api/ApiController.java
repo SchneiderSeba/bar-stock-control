@@ -129,13 +129,27 @@ public class ApiController {
         SupplierInvoice invoice = new SupplierInvoice();
         invoice.setInvoiceNumber(input.invoiceNumber().trim());
         invoice.setInvoiceDate(input.invoiceDate() == null ? LocalDate.now() : input.invoiceDate());
-        invoice.setSupplier(suppliers.findById(input.supplierId()).orElseThrow(() -> notFound("Supplier")));
+        Supplier invoiceSupplier=suppliers.findById(input.supplierId()).orElseThrow(() -> notFound("Supplier"));
+        invoice.setSupplier(invoiceSupplier);
         invoice.setStatus(input.status() == null ? SupplierInvoice.Status.PENDING : input.status());
         invoice.setNotes(input.notes());
         BigDecimal total = BigDecimal.ZERO;
         for (InvoiceLineInput line : input.items()) {
-            Product product = product(line.productId());
+            if((line.productId()==null)==(line.newProduct()==null))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Cada línea debe seleccionar un producto o completar uno nuevo");
+            Product product;
+            if(line.newProduct()!=null) {
+                NewInvoiceProductInput draft=line.newProduct();
+                String internalSku=draft.sku().trim(),code=draft.supplierSku().trim();
+                if(products.existsBySku(internalSku))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"El SKU interno ya existe: "+internalSku);
+                if(supplierSkus.existsBySupplierIdAndSkuAndProductIdNot(input.supplierId(),code,-1L))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"El SKU del proveedor ya pertenece a otro producto: "+code);
+                ProductInput productInput=new ProductInput(internalSku,draft.name(),draft.category(),draft.unit(),draft.minimumStock(),draft.sellingPrice(),null,true,draft.kegSizeLitres(),List.of(new SupplierSkuInput(input.supplierId(),code)),draft.volumeMl());
+                product=products.save(toProduct(new Product(),productInput));
+            } else product = product(line.productId());
             String supplierSku=line.supplierSku();
+            if(line.newProduct()!=null)supplierSku=line.newProduct().supplierSku();
             if(supplierSku != null) {
                 supplierSku=supplierSku.trim();
                 String code=supplierSku;
@@ -257,7 +271,13 @@ public class ApiController {
             Integer kegSizeLitres,@Min(1) Integer volumeMl) {}
     public record SupplierSkuInput(@NotNull Long supplierId,@NotBlank @Size(max=50) String sku) {}
     public record StockAdjustment(BigDecimal quantity, String reason) {}
-    public record InvoiceLineInput(@NotNull Long productId, @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity, @NotNull @DecimalMin("0") BigDecimal unitCost, @Size(max=50) String supplierSku) {}
+    public record NewInvoiceProductInput(@NotBlank @Size(max=50) String sku,@NotBlank @Size(max=50) String supplierSku,
+            @NotBlank @Size(max=140) String name,@NotBlank @Size(max=80) String category,@NotBlank @Size(max=30) String unit,
+            @NotNull @DecimalMin("0") BigDecimal minimumStock,@NotNull @DecimalMin("0") BigDecimal sellingPrice,
+            Integer kegSizeLitres,@Min(1) Integer volumeMl) {}
+    public record InvoiceLineInput(Long productId, @Valid NewInvoiceProductInput newProduct,
+            @NotNull @DecimalMin(value="0", inclusive=false) BigDecimal quantity,
+            @NotNull @DecimalMin("0") BigDecimal unitCost, @Size(max=50) String supplierSku) {}
     public record InvoiceInput(@NotBlank String invoiceNumber, @NotNull Long supplierId, LocalDate invoiceDate, SupplierInvoice.Status status, String notes, @NotEmpty List<@Valid InvoiceLineInput> items) {}
     public record MonthMetrics(LocalDate startDate,LocalDate endDate,BigDecimal sales,BigDecimal purchases,BigDecimal profit,int appliedReportCount) {}
     public record MonthlyComparison(MonthMetrics previous,MonthMetrics current) {}

@@ -1,7 +1,8 @@
 export type InvoiceOcrSourceLine={text:string;score?:number;box:{xmin:number;ymin:number;xmax:number;ymax:number}}
 export type InvoiceOcrCatalogItem={productId:number;productName:string;supplierSku:string;aliases:string[]}
 export type InvoiceOcrLine={productId:number;productName:string;supplierSku:string;quantity:string;unitCost:string;sourceText:string;confidence:number}
-export type InvoiceOcrDraft={invoiceNumber:string;invoiceDate:string;lines:InvoiceOcrLine[];unmatchedRows:string[]}
+export type InvoiceOcrUnknownLine={supplierSku:string;productName:string;quantity:string;unitCost:string;sourceText:string;confidence:number}
+export type InvoiceOcrDraft={invoiceNumber:string;invoiceDate:string;lines:InvoiceOcrLine[];unknownLines:InvoiceOcrUnknownLine[];unmatchedRows:string[]}
 
 type Row={text:string;center:number;height:number;confidence:number}
 const normalized=(value:string)=>` ${value.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]+/g,' ').trim()} `
@@ -44,7 +45,7 @@ function parseInvoiceNumber(text:string){
 }
 
 export function parseInvoiceOcr(sourceLines:InvoiceOcrSourceLine[],rawText:string,catalog:InvoiceOcrCatalogItem[]):InvoiceOcrDraft{
- const rows=assembleInvoiceRows(sourceLines),result:InvoiceOcrLine[]=[];const unmatchedRows:string[]=[];const usedRows=new Set<number>()
+ const rows=assembleInvoiceRows(sourceLines),result:InvoiceOcrLine[]=[];const unknownLines:InvoiceOcrUnknownLine[]=[];const unmatchedRows:string[]=[];const usedRows=new Set<number>()
  rows.forEach((row,rowIndex)=>{
   const rowNormalized=normalized(row.text)
   const candidates=catalog.flatMap(item=>item.aliases.map(alias=>({item,alias,needle:normalized(alias).trim()}))).filter(candidate=>candidate.needle&&rowNormalized.includes(` ${candidate.needle} `)).sort((a,b)=>b.needle.length-a.needle.length)
@@ -60,7 +61,19 @@ export function parseInvoiceOcr(sourceLines:InvoiceOcrSourceLine[],rawText:strin
   result.push({productId:candidate.item.productId,productName:candidate.item.productName,supplierSku:candidate.item.supplierSku,quantity:value(quantity,3),unitCost:value(unitCost,2),sourceText:row.text,confidence:row.confidence})
   usedRows.add(rowIndex)
  })
- rows.forEach((row,index)=>{if(!usedRows.has(index)&&/\d/.test(row.text)&&row.text.length>4)unmatchedRows.push(row.text)})
+ rows.forEach((row,index)=>{
+  if(usedRows.has(index)||!/\d/.test(row.text)||row.text.length<=4)return
+  const tokens=row.text.trim().split(/\s+/),numbers=amounts(row.text)
+  if(numbers.length>=2&&tokens.length>=4&&/[A-Za-z]/.test(row.text)){
+   const supplierSku=tokens[0].replace(/[^A-Za-z0-9._/-]/g,'')
+   const numericStart=tokens.findIndex((token,i)=>i>0&&parseAmount(token)!==undefined)
+   const productName=tokens.slice(1,numericStart>1?numericStart:tokens.length-Math.min(3,numbers.length)).join(' ').trim()
+   const quantity=numbers.length>=3?numbers[numbers.length-3]:numbers[0]
+   const unitCost=numbers.length>=3?numbers[numbers.length-2]:numbers[1]
+   if(supplierSku&&productName)unknownLines.push({supplierSku,productName,quantity:value(quantity,3),unitCost:value(unitCost,2),sourceText:row.text,confidence:row.confidence})
+   else unmatchedRows.push(row.text)
+  } else unmatchedRows.push(row.text)
+ })
  const text=[rawText,...rows.map(row=>row.text)].join('\n')
- return{invoiceNumber:parseInvoiceNumber(text),invoiceDate:parseDate(text),lines:result,unmatchedRows}
+ return{invoiceNumber:parseInvoiceNumber(text),invoiceDate:parseDate(text),lines:result,unknownLines,unmatchedRows}
 }

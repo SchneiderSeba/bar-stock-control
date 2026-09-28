@@ -48,4 +48,25 @@ class InvoiceIntegrationTests {
             }
         }
     }
+
+    @Test void invoiceCreatesUnknownProductAndReceivesItsStockAtomically() throws Exception {
+        JsonNode suppliers=json.readTree(mvc.perform(get("/api/suppliers"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long supplierId=suppliers.get(0).get("id").asLong();
+        String body="""
+            {"invoiceNumber":"NEW-PRODUCT-001","supplierId":%d,"invoiceDate":"2026-09-28",
+             "items":[{"quantity":24,"unitCost":1.50,"supplierSku":"NEW-77",
+               "newProduct":{"sku":"NEW-77","supplierSku":"NEW-77","name":"Tonic Water",
+                 "category":"Mixer","unit":"bottle","volumeMl":200,"minimumStock":6,"sellingPrice":3.50}}]}
+            """.formatted(supplierId);
+        mvc.perform(post("/api/invoices").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+        JsonNode products=json.readTree(mvc.perform(get("/api/products"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode created=null;
+        for(JsonNode product:products)if("NEW-77".equals(product.get("sku").asText()))created=product;
+        assertEquals("Tonic Water",created.get("name").asText());
+        assertEquals(24,created.get("stock").asInt());
+        assertEquals("NEW-77",created.get("supplierSkus").get(0).get("sku").asText());
+    }
 }

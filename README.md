@@ -166,7 +166,7 @@ mvn spring-boot:run
 
 Usa una contraseña de 12 a 72 caracteres; BCrypt también limita a 72 bytes en UTF-8. El administrador se crea al iniciar si su email aún no existe. Si no configuras `ADMIN_PASSWORD`, no se crea un administrador, pero puedes registrar una cuenta normal desde la app. La variable no reemplaza la contraseña de una cuenta existente.
 
-Si reutilizas una terminal previamente configurada para MySQL, elimina `SPRING_PROFILES_ACTIVE` antes de usar H2 (`Remove-Item Env:SPRING_PROFILES_ACTIVE` en PowerShell, `unset SPRING_PROFILES_ACTIVE` en Bash).
+Si reutilizas una terminal configurada para PostgreSQL, elimina `SPRING_PROFILES_ACTIVE` antes de usar H2 (`Remove-Item Env:SPRING_PROFILES_ACTIVE` en PowerShell, `unset SPRING_PROFILES_ACTIVE` en Bash).
 
 ### Terminal 2: frontend
 
@@ -182,23 +182,21 @@ Abre **http://localhost:5173**, inicia sesión con el administrador configurado 
 
 Detén ambos procesos con `Ctrl+C`. Para ejecutar comandos adicionales utiliza otra terminal.
 
-## Opción 2: ejecutar con MySQL persistente
+## Opción 2: ejecutar con PostgreSQL persistente
 
 ### 1. Crear una base nueva
 
-Inicia MySQL y conéctate desde MySQL Workbench. Abre `database/bar_stock.sql` y ejecútalo completo. Crea la base `bar_stock`, sus tablas y datos de ejemplo.
-
-El script de instalación es para una base nueva: no vuelvas a ejecutarlo sobre una instalación existente porque las tablas ya estarán creadas. Para actualizar, sigue la sección de migraciones (incluida la 004 para kegs).
+Inicia PostgreSQL y crea una base vacía llamada `bar_stock`. Al iniciar con el perfil `postgres`, Hibernate crea o actualiza las tablas requeridas.
 
 ### 2. Configurar el backend
 
 En **PowerShell**, desde la raíz del proyecto:
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = "mysql"
-$env:MYSQL_URL = "jdbc:mysql://localhost:3306/bar_stock?useSSL=false&serverTimezone=UTC"
-$env:MYSQL_USER = "root"
-$env:MYSQL_PASSWORD = Read-Host "Contraseña de MySQL"
+$env:SPRING_PROFILES_ACTIVE = "postgres"
+$env:DATABASE_URL = "jdbc:postgresql://localhost:5432/bar_stock"
+$env:PGUSER = "postgres"
+$env:PGPASSWORD = Read-Host "Contraseña de PostgreSQL"
 $env:ADMIN_EMAIL = "admin@barstock.app"
 $env:ADMIN_PASSWORD = Read-Host "Contraseña inicial del admin"
 mvn spring-boot:run
@@ -207,22 +205,22 @@ mvn spring-boot:run
 En **Bash**:
 
 ```bash
-export SPRING_PROFILES_ACTIVE=mysql
-export MYSQL_URL='jdbc:mysql://localhost:3306/bar_stock?useSSL=false&serverTimezone=UTC'
-export MYSQL_USER=root
-read -rsp 'Contraseña de MySQL: ' MYSQL_PASSWORD; echo
-export MYSQL_PASSWORD
+export SPRING_PROFILES_ACTIVE=postgres
+export DATABASE_URL='jdbc:postgresql://localhost:5432/bar_stock'
+export PGUSER=postgres
+read -rsp 'Contraseña de PostgreSQL: ' PGPASSWORD; echo
+export PGPASSWORD
 export ADMIN_EMAIL='admin@barstock.app'
 read -rsp 'Contraseña inicial del admin: ' ADMIN_PASSWORD; echo
 export ADMIN_PASSWORD
 mvn spring-boot:run
 ```
 
-Sustituye usuario, host y puerto por los de tu servidor. La URL con `useSSL=false` es para el ejemplo local; usa la configuración TLS de tu servidor para una base remota. Con el perfil `mysql`, Hibernate **valida** las tablas: no las crea ni ejecuta las migraciones automáticamente.
+En Railway, el servicio PostgreSQL expone estas variables mediante referencias privadas. La aplicación usa `SPRING_PROFILES_ACTIVE=postgres` y una `DATABASE_URL` JDBC. Los datos permanecen en el volumen administrado de PostgreSQL durante reinicios y despliegues.
 
 ### 3. Iniciar React
 
-En otra terminal, ejecuta `npm ci` y `npm run dev` dentro de `frontend`. Abre http://localhost:5173. Los datos de MySQL se conservan al reiniciar; las sesiones requieren volver a iniciar sesión al reiniciar el backend.
+En otra terminal, ejecuta `npm ci` y `npm run dev` dentro de `frontend`. Abre http://localhost:5173. Los datos de PostgreSQL se conservan al reiniciar; las sesiones requieren volver a iniciar sesión al reiniciar el backend.
 
 ### Actualizar una base existente
 
@@ -257,19 +255,19 @@ Abre **http://localhost:8080**. No necesitas iniciar Vite por separado. Este con
 Para usar MySQL desde Docker, configura las seis variables de la opción 2 y pásalas al contenedor:
 
 ```text
-docker run --rm --name barstock -p 8080:8080 -e SPRING_PROFILES_ACTIVE -e MYSQL_URL -e MYSQL_USER -e MYSQL_PASSWORD -e ADMIN_EMAIL -e ADMIN_PASSWORD barstock
+docker run --rm --name barstock -p 8080:8080 -e SPRING_PROFILES_ACTIVE -e DATABASE_URL -e PGUSER -e PGPASSWORD -e ADMIN_EMAIL -e ADMIN_PASSWORD barstock
 ```
 
-La base debe estar creada antes de iniciar. Dentro del contenedor, `localhost` apunta al propio contenedor. En Docker Desktop, usa `host.docker.internal` en `MYSQL_URL` si MySQL está en tu computadora; si está en otro contenedor, usa su nombre en una red Docker compartida. El comando anterior no crea un servicio MySQL.
+La base debe estar creada antes de iniciar. Dentro del contenedor, `localhost` apunta al propio contenedor. En Docker Desktop, usa `host.docker.internal` en `DATABASE_URL` si PostgreSQL está en tu computadora; si está en otro contenedor, usa su nombre en una red Docker compartida.
 
 ## Variables de entorno
 
 | Variable | Función / valor predeterminado |
 | --- | --- |
-| `SPRING_PROFILES_ACTIVE` | `mysql` para MySQL; sin definir utiliza H2 |
-| `MYSQL_URL` | URL JDBC; por defecto base `bar_stock` en `localhost:3306` |
-| `MYSQL_USER` | Usuario MySQL; predeterminado `root` |
-| `MYSQL_PASSWORD` | Contraseña MySQL; predeterminado vacío |
+| `SPRING_PROFILES_ACTIVE` | `postgres` para PostgreSQL; sin definir utiliza H2 |
+| `DATABASE_URL` | URL JDBC de PostgreSQL, por ejemplo `jdbc:postgresql://host:5432/bar_stock` |
+| `PGUSER` | Usuario de PostgreSQL |
+| `PGPASSWORD` | Contraseña de PostgreSQL |
 | `ADMIN_EMAIL` | Email del administrador inicial; predeterminado `admin@barstock.app` |
 | `ADMIN_PASSWORD` | Contraseña para crear el administrador inicial; sin valor no se crea |
 | `SERVER_PORT` | Puerto del backend local; predeterminado 8080 |
@@ -362,7 +360,7 @@ Genera los archivos estáticos en `frontend/dist`. `npm run preview` solo previs
 
 Railway despliega la rama `main` usando el `Dockerfile`. El contenedor escucha en `PORT` y sirve frontend y backend juntos. Las variables del administrador se configuran en el servicio, con cookies Secure porque la URL usa HTTPS.
 
-**La demo publicada sigue usando H2 en memoria:** cuentas registradas, cambios de contraseña, productos, facturas e imágenes se pierden al reiniciar o redesplegar el servicio. El administrador inicial vuelve a crearse a partir de las variables configuradas. Para conservar datos, configura MySQL, ejecuta el SQL y activa el perfil `mysql`.
+La aplicación publicada usa PostgreSQL persistente en Railway. Usuarios, productos, proveedores, facturas, movimientos y reportes permanecen durante reinicios y despliegues. Las fotografías usadas por el OCR de facturas se procesan en el navegador y no se almacenan.
 
 ## Problemas comunes
 
