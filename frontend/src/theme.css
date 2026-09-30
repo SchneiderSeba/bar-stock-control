@@ -1,0 +1,53 @@
+.header-actions{display:flex;align-items:center;gap:10px}.theme-toggle{display:flex;align-items:center;gap:7px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-size:11px;font-weight:700;cursor:pointer}.theme-toggle>span:first-child{font-size:16px}.theme-toggle:hover{border-color:#9cab9e;background:#f0f3ec}.theme-toggle:focus-visible{outline:3px solid #7fa18a55;outline-offset:2px}
+
+[data-theme=dark]{color:#e8eee9;background:#101612;--ink:#e8eee9;--green:#82c79a;--cream:#101612;--line:#334239;--muted:#a2afa6}
+[data-theme=dark] body,[data-theme=dark] .app-shell{background:#101612;color:#e8eee9}
+[data-theme=dark] aside{background:#0b100d;border-right:1px solid #26332b}
+[data-theme=dark] nav a:hover{background:#1b2820}
+[data-theme=dark] nav a.active,[data-theme=dark] nav a.active:hover{background:var(--lime);color:#132016}
+[data-theme=dark] header p,[data-theme=dark] .eyebrow{color:#93a198}
+[data-theme=dark] .theme-toggle,[data-theme=dark] .ghost,[data-theme=dark] .secondary{background:#202b24;color:#e5ece7;border-color:#39483e}
+[data-theme=dark] .theme-toggle:hover,[data-theme=dark] .ghost:hover,[data-theme=dark] .secondary:hover{background:#2a382f}
+[data-theme=dark] .primary{background:#83c99a;color:#0d1b12}
+[data-theme=dark] .primary:hover{background:#a0d9b2}
+[data-theme=dark] .metric,[data-theme=dark] .card,[data-theme=dark] .table-wrap,[data-theme=dark] .supplier-grid article,[data-theme=dark] .monthly-overview,[data-theme=dark] .comparison-overview,[data-theme=dark] .auth-card{background:#18201b;color:#e8eee9}
+[data-theme=dark] .metric.accent{background:#193024;border-color:#34513f}
+[data-theme=dark] .metric.accent strong,[data-theme=dark] .report-coverage strong{color:#9addb0}
+[data-theme=dark] .metric.warn{background:#33251d;border-color:#59402f}
+[data-theme=dark] .metric.warn strong{color:#f0a778}
+[data-theme=dark] .card-head span,[data-theme=dark] .period-selector,[data-theme=dark] .report-coverage,[data-theme=dark] .form-note,[data-theme=dark] .sales-upload pre{background:#242f28;color:#aebbb2}
+[data-theme=dark] .product-icon,[data-theme=dark] .supplier-avatar,[data-theme=dark] .product-photo,[data-theme=dark] .product-detail-image{background:#27342c;color:#a9d8b8}
+[data-theme=dark] .search,[data-theme=dark] .modal,[data-theme=dark] .bulk-product-form input,[data-theme=dark] .bulk-product-form select,[data-theme=dark] .form-grid input,[data-theme=dark] .form-grid select,[data-theme=dark] .auth-form input,[data-theme=dark] .new-product-fields{background:#1b251f;color:#e8eee9;border-color:#3a4a40}
+[data-theme=dark] input::placeholder,[data-theme=dark] textarea::placeholder{color:#819087}
+[data-theme=dark] select{color-scheme:dark}
+[data-theme=dark] th{background:#222d26;color:#a7b4ab}
+[data-theme=dark] td{border-color:#303d34}
+[data-theme=dark] .attention-list>div,[data-theme=dark] .supplier-grid dl,[data-theme=dark] .invoice-line{border-color:#303d34}
+[data-theme=dark] .line-box,[data-theme=dark] .bulk-product-line{background:#202b24;border-color:#35443a}
+[data-theme=dark] .modal-backdrop{background:#060907c7}
+[data-theme=dark] .modal-head button{color:#a9b5ad}
+[data-theme=dark] .status.good{background:#213c2b;color:#91d8a8}
+[data-theme=dark] .status.low{background:#432b20;color:#f1aa7d}
+[data-theme=dark] .status.pending{background:#3c3420;color:#e7ce7d}
+[data-theme=dark] .error{background:#48241f;color:#ffb6a8}
+[data-theme=dark] .monthly-chart,[data-theme=dark] .combined-chart,[data-theme=dark] .comparison-context>div,[data-theme=dark] .period-chart-card{background:#1d2721;border-color:#35433a}
+[data-theme=dark] .chart-values>div,[data-theme=dark] .period-chart-values>div{background:#263129}
+[data-theme=dark] .combined-chart text{fill:#a8b5ac}
+[data-theme=dark] .chart-axis{stroke:#536158}
+[data-theme=dark] .recharts-cartesian-grid line{stroke:#334138}
+[data-theme=dark] .recharts-default-tooltip{background:#18201b!important;border-color:#425247!important;color:#e8eee9!important}
+[data-theme=dark] .recharts-tooltip-label,[data-theme=dark] .recharts-tooltip-item{color:#e8eee9!important}
+[data-theme=dark] .recharts-tooltip-cursor{fill:#29362e!important}
+[data-theme=dark] .invoice-ocr{background:#1b2920;border-color:#3b5442}
+[data-theme=dark] .ocr-hint,[data-theme=dark] .ocr-source{color:#9fb0a4}
+[data-theme=dark] .ocr-result img,[data-theme=dark] .ocr-result pre{background:#121914;border-color:#344239;color:#dbe5de}
+[data-theme=dark] .invoice-line.ocr-line{background:#1c2b21;border-color:#385140}
+[data-theme=dark] .invoice-confirmation{background:#342e1d;border-color:#5b4e29}
+[data-theme=dark] .invoice-confirmation strong{color:#f0d784}
+[data-theme=dark] .invoice-confirmation span{color:#c9bb8f}
+[data-theme=dark] .auth-page{background:#0b100d}
+[data-theme=dark] .auth-switch{color:#9bd7ae}
+[data-theme=dark] .image-preview{background:#111713}
+[data-theme=dark] .new-product-fields h4,[data-theme=dark] .product-link:hover{color:#9bd7ae}
+
+@media(max-width:720px){.header-actions{gap:5px}.theme-toggle{width:36px;padding:0;justify-content:center}.theme-toggle>span:last-child{display:none}}
