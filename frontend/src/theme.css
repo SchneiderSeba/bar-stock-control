@@ -40,7 +40,13 @@
 [data-theme=dark] .recharts-tooltip-cursor{fill:#29362e!important}
 [data-theme=dark] .invoice-ocr{background:#1b2920;border-color:#3b5442}
 [data-theme=dark] .ocr-hint,[data-theme=dark] .ocr-source{color:#9fb0a4}
+[data-theme=dark] .ocr-paste{border-color:#344239}
+[data-theme=dark] .ocr-paste summary{color:#a7d7b4}
+[data-theme=dark] .ocr-paste textarea{background:#121914;border-color:#344239;color:#dbe5de}
 [data-theme=dark] .ocr-result img,[data-theme=dark] .ocr-result pre{background:#121914;border-color:#344239;color:#dbe5de}
+[data-theme=dark] .ocr-result ul{color:#b7c6bd}
+[data-theme=dark] .ocr-total.warn,[data-theme=dark] .invoice-total.warn,[data-theme=dark] .invoice-line.needs-review{background:#3a301c;border-color:#6e5b28;color:#f0d784}
+[data-theme=dark] .ocr-source strong{color:#f0d784}
 [data-theme=dark] .invoice-line.ocr-line{background:#1c2b21;border-color:#385140}
 [data-theme=dark] .invoice-confirmation{background:#342e1d;border-color:#5b4e29}
 [data-theme=dark] .invoice-confirmation strong{color:#f0d784}

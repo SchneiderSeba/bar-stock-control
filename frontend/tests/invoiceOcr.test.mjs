@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {assembleInvoiceRows,parseInvoiceOcr} from '../src/invoiceOcr.ts'
+import {assembleInvoiceRows,parseInvoiceOcr,parseInvoiceOcrText} from '../src/invoiceOcr.ts'
 
 const line=(text,xmin,ymin,xmax=xmin+80,ymax=ymin+15,score=.95)=>({text,score,box:{xmin,ymin,xmax,ymax}})
 const catalog=[
@@ -26,6 +26,30 @@ test('extracts metadata and editable product suggestions',()=>{
  assert.deepEqual(draft.lines.map(({productId,quantity,unitCost,supplierSku})=>({productId,quantity,unitCost,supplierSku})),[
   {productId:1,quantity:'2',unitCost:'85.50',supplierSku:'50055'},
   {productId:2,quantity:'3',unitCost:'22.40',supplierSku:'9878'},
+ ])
+})
+
+test('extracts invoice total and leaves total rows out of product suggestions',()=>{
+ const draft=parseInvoiceOcr([
+  line('50055 Guinness Keg 50L 2 85,50 171,00',10,100,560),
+  line('Subtotal 171,00',390,180,560),
+  line('TOTAL EUR 171,00',390,205,560),
+ ],'',catalog)
+ assert.equal(draft.invoiceTotal,'171.00')
+ assert.equal(draft.unknownLines.length,0)
+ assert.ok(draft.unmatchedRows.some(row=>row.includes('TOTAL')))
+})
+
+test('parses pasted OCR text with the same invoice rules',()=>{
+ const draft=parseInvoiceOcrText(`Invoice INV-777
+Date 2026-09-22
+9878 Jameson 700ml 3 22.40 67.20
+TOTAL 67.20`,catalog)
+ assert.equal(draft.invoiceNumber,'INV-777')
+ assert.equal(draft.invoiceDate,'2026-09-22')
+ assert.equal(draft.invoiceTotal,'67.20')
+ assert.deepEqual(draft.lines.map(({productId,quantity,unitCost})=>({productId,quantity,unitCost})),[
+  {productId:2,quantity:'3',unitCost:'22.40'},
  ])
 })
 

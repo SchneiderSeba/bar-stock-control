@@ -2,7 +2,7 @@ export type InvoiceOcrSourceLine={text:string;score?:number;box:{xmin:number;ymi
 export type InvoiceOcrCatalogItem={productId:number;productName:string;supplierSku:string;aliases:string[]}
 export type InvoiceOcrLine={productId:number;productName:string;supplierSku:string;quantity:string;unitCost:string;sourceText:string;confidence:number}
 export type InvoiceOcrUnknownLine={supplierSku:string;productName:string;quantity:string;unitCost:string;sourceText:string;confidence:number}
-export type InvoiceOcrDraft={invoiceNumber:string;invoiceDate:string;lines:InvoiceOcrLine[];unknownLines:InvoiceOcrUnknownLine[];unmatchedRows:string[]}
+export type InvoiceOcrDraft={invoiceNumber:string;invoiceDate:string;invoiceTotal:string;lines:InvoiceOcrLine[];unknownLines:InvoiceOcrUnknownLine[];unmatchedRows:string[]}
 
 type Row={text:string;center:number;height:number;confidence:number}
 const normalized=(value:string)=>` ${value.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]+/g,' ').trim()} `
@@ -31,6 +31,7 @@ function parseAmount(value:string){
 
 function amounts(value:string){return [...value.matchAll(/(?:€|EUR|£|\$)?\s*\d+(?:[.,]\d+)?/gi)].map(match=>parseAmount(match[0])).filter((number):number is number=>number!==undefined)}
 function value(number:number|undefined,decimals:number){return number===undefined?'':number.toFixed(decimals).replace(/\.0+$/,'')}
+function moneyValue(number:number|undefined){return number===undefined?'':number.toFixed(2)}
 
 function parseDate(text:string){
  const iso=text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/)
@@ -42,6 +43,17 @@ function parseDate(text:string){
 function parseInvoiceNumber(text:string){
  const match=text.match(/(?:FACTURA|INVOICE|INV(?:OICE)?|N[º°O.]?)\s*(?:N[º°O.]?\s*)?[:#-]?\s*([A-Z0-9][A-Z0-9/-]{2,})/i)
  return match?.[1]??''
+}
+
+function parseInvoiceTotal(rows:Row[],rawText:string){
+ const totalRows=[...rows.map(row=>row.text),...rawText.split(/\r?\n/)].filter(text=>/\b(TOTAL|AMOUNT DUE|BALANCE DUE|IMPORTE)\b/i.test(text)&&!/\b(SUBTOTAL|VAT|IVA|TAX)\b/i.test(text))
+ const numbers=totalRows.flatMap(amounts)
+ return moneyValue(numbers.at(-1))
+}
+
+export function parseInvoiceOcrText(text:string,catalog:InvoiceOcrCatalogItem[]):InvoiceOcrDraft{
+ const lines=text.split(/\r?\n/).map((row,index)=>row.trim()).filter(Boolean).map((row,index)=>({text:row,score:1,box:{xmin:0,ymin:index*20,xmax:800,ymax:index*20+14}}))
+ return parseInvoiceOcr(lines,text,catalog)
 }
 
 export function parseInvoiceOcr(sourceLines:InvoiceOcrSourceLine[],rawText:string,catalog:InvoiceOcrCatalogItem[]):InvoiceOcrDraft{
@@ -63,6 +75,7 @@ export function parseInvoiceOcr(sourceLines:InvoiceOcrSourceLine[],rawText:strin
  })
  rows.forEach((row,index)=>{
   if(usedRows.has(index)||!/\d/.test(row.text)||row.text.length<=4)return
+  if(/\b(TOTAL|SUBTOTAL|VAT|IVA|TAX|DATE|FECHA|INVOICE|FACTURA)\b/i.test(row.text)){unmatchedRows.push(row.text);return}
   const tokens=row.text.trim().split(/\s+/),numbers=amounts(row.text)
   if(numbers.length>=2&&tokens.length>=4&&/[A-Za-z]/.test(row.text)){
    const supplierSku=tokens[0].replace(/[^A-Za-z0-9._/-]/g,'')
@@ -75,5 +88,5 @@ export function parseInvoiceOcr(sourceLines:InvoiceOcrSourceLine[],rawText:strin
   } else unmatchedRows.push(row.text)
  })
  const text=[rawText,...rows.map(row=>row.text)].join('\n')
- return{invoiceNumber:parseInvoiceNumber(text),invoiceDate:parseDate(text),lines:result,unknownLines,unmatchedRows}
+ return{invoiceNumber:parseInvoiceNumber(text),invoiceDate:parseDate(text),invoiceTotal:parseInvoiceTotal(rows,rawText),lines:result,unknownLines,unmatchedRows}
 }
